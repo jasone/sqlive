@@ -1,6 +1,6 @@
 # All Rights Reserved
 
-Copyright (c) 2021 Julien Verlaguet
+Copyright (c) 2021 SkipLabs
 
 # Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International
 
