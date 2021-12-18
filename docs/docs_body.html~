@@ -1,0 +1,285 @@
+<h1>Download</h1>
+
+<p>A free version of sqlive is available for non-commercial use (<a href="https://github.com/SkipLabs/sqlive/blob/main/LICENSE.md">license</a>).
+You can download it here:
+<a href="https://github.com/SkipLabs/sqlive/raw/main/bin/sqlive-linux-x64-0.9.bin">https://github.com/SkipLabs/sqlive/raw/main/bin/sqlive-linux-x64-0.9.bin</a></p>
+
+<p>For commercial use, please contact us at <a href="mailto:contact@skiplabs.io">contact@skiplabs.io</a>.</p>
+
+<h2>Linux</h2>
+
+<p>SQLIVE is only available for x64-Linux.
+If you don't have linux on your machine, you can install <a href="https://docs.microsoft.com/en-us/windows/wsl/install">WSL</a> on windows or
+<a href="https://docs.docker.com/desktop/mac/install/">docker</a> for mac.
+Although SQLIVE runs on most versions of Linux, SkipLabs will only maintain a version running on the latest <a href="https://wiki.ubuntu.com/Releases">ubuntu LTS</a>.
+We highly recommend you use that version,
+but if you need to run sqlive on a different platform, please contact us at <a href="mailto:contact@skiplabs.io">contact@skiplabs.io</a>.</p>
+
+<h1>Getting started</h1>
+
+<h2>Install</h2>
+
+<p>First, install the binary file (preferably in /usr/local/bin). Make sure you don't rename the original binary, because
+some SQLIVE updates will require you to export your data to a newer version of the database. So it is safer to keep all
+the different versions of SQLIVE around in case you need them.</p>
+
+<p><code>
+$ mv sqlive-linux-x64-0.9.bin /usr/local/bin
+$ ln -s /usr/local/bin/sqlive-linux-x64-0.9.bin /usr/local/bin/sqlive
+</code></p>
+
+<h2>Initialization</h2>
+
+<p>SQLIVE stores all of its data in a file specified by the user.
+To initialize a database file, use the option --init.</p>
+
+<p><code>
+$ sqlive --init /tmp/test.db
+</code></p>
+
+<p>Make sure you do not manipulate this file (copy, rename etc ...) while other processes are accessing the database.
+By default, the maximum capacity of the database is 16GB. Meaning, the database will only be accessible in read-only
+mode once that limit is reached. If you need a larger capacity, you can use the option --capacity at initialization time.</p>
+
+<p><code>
+$ sqlive --init /tmp/test.db --capacity $YOUR_CHOICE
+</code></p>
+
+<h2>Loading data</h2>
+
+<p>You can find mock data available in the example/ directory. Let's load the data:</p>
+
+<p><code>
+$ cat tiny_TPCH.sql | sqlive --data /tmp/test.db
+</code></p>
+
+<p>This created two tables. One named customer the other named orders.
+Here are their schema:</p>
+
+<p><code>
+$ sqlive --dump-tables --data /tmp/test.db
+CREATE TABLE customer (
+  c_custkey INTEGER PRIMARY KEY,
+  c_name TEXT,
+  c_address TEXT,
+  c_nationkey INTEGER,
+  c_phone TEXT,
+  c_acctbal FLOAT,
+  c_mktsegment TEXT,
+  c_comment TEXT
+);
+CREATE TABLE orders (
+  o_orderkey INTEGER PRIMARY KEY,
+  o_custkey INTEGER,
+  o_orderstatus TEXT,
+  o_totalprice FLOAT,
+  o_orderdate TEXT,
+  o_orderpriority TEXT,
+  o_clerk TEXT,
+  o_shippriority INTEGER,
+  o_comment TEXT
+);
+</code></p>
+
+<p>Note that SQLIVE only supports 3 types:
+- 64 bits integers (INTEGER)
+- 64 bits floating point numbers (FLOAT)
+- UTF-8 strings (TEXT)</p>
+
+<p>By looking at the schema, we can see that the two tables are related through the columns c<em>custkey and o</em>custkey.
+Each order identifies the customer that passed the order through a unique identifier (as it is often the case in
+relational databases). But what happens when a query needs to both process an order and lookup the data associated to the
+user that passed the order? This requires the use of a join, which you will see, work differently in SQLIVE.</p>
+
+<h2>JOINS</h2>
+
+<p>Let's try to run a basic join:</p>
+
+<p><code>
+$ echo "select * from customer, orders where c_custkey = o_custkey;" | sqlive --data /tmp/test.db
+</code></p>
+
+<p>Suprisingly, this leads to an error.</p>
+
+<p>```
+select * from customer, orders where c<em>custkey = o</em>custkey;
+^
+|
+ ----- ERROR
+Error: line 1, characters 0-0:
+Joins outside of virtual views are considered bad practice in sqlive.
+You should first create a virtual view joining customer and orders with a query of the form:</p>
+
+<p>create virtual view customer<em>orders as select * from customer, orders where c</em>custkey = o_custkey;</p>
+
+<p>And then use customer_orders directly.
+PS: You can ignore this error message with --always-allow-join (not recommended).
+PS2: don't forget you can add indexes to virtual views.
+```</p>
+
+<p>The error message is pretty explicit. Joins outside of a virtual view are considered bad practice. But why is that?
+The reason is that a join is a very expensive operation. When you run it outside of a virtual view, you will have
+to repeat that operation every single time.
+A better approach is to create a virtual view once and for all and have all the subsequent queries
+share the same virtual view. Let's follow the advice given in the error message:</p>
+
+<p><code>
+$ echo "create virtual view customer_orders as select * from customer, orders where c_custkey = o_custkey;" | sqlive --data /tmp/test.db
+</code></p>
+
+<p>This command created the virtual view "customer_orders", which can now be used like any other table.
+Let's find the orders from customer number 889.</p>
+
+<p><code>
+$ echo "select * from customer_orders where c_custkey = 889;" | sqlive --data /tmp/test.db
+889|Customer#000000889|pLvfd7drswfAcH8oh2seEct|13|23-625-369-6714|3635.3499999989999|FURNITURE|inal ideas. slowly pending frays are. fluff|931|889|F|155527.98000000001|1992-12-07|1-URGENT|Clerk#000000881|0|ss packages haggle furiously express, regular deposits. even, e
+</code></p>
+
+<p>And that works for any query involving customers and orders. Instead of recomputing expensive joins every single time orders and customers are
+involved, you can run those queries directly on the virtual view customer_orders.
+To speed things up, we recomment you add indexes to your virtual views:</p>
+
+<p><code>
+$ echo "create index customer_orders_c_custkey ON customer_orders(c_custkey);" | sqlive --data /tmp/test.db
+</code></p>
+
+<p>If you are unsure about your queries, you can ask SQLIVE to list the indexes that were used for a particual query throuh the option --show-used-indexes.
+This option is particularly useful when trying to optimize your queries.</p>
+
+<p><code>
+$ echo "select * from customer_orders where c_custkey = 889;" | sqlive --data /tmp/test.db --show-used-indexes
+USING INDEX: customer_orders_c_custkey
+...
+</code></p>
+
+<h2>Connections</h2>
+
+<p>Virtual views can be used to maintain a query up-to-date at all times, as we have just seen, but
+they can also be used to get notified when changes occurs.</p>
+
+<p>For example, let's create a query that tracks all the customer with a negative balance.</p>
+
+<p><code>
+echo "create virtual view negative_balance as select * from customer where c_acctbal &lt; 0.0;" | sqlive --data /tmp/test.db
+</code></p>
+
+<p>The creation of the virtual view does not trigger notifications. We need to "connect" to that view in order to receive them.</p>
+
+<p><code>
+$ sqlive --data /tmp/test.db --connect negative_balance --stream /tmp/negative_balance
+4023
+</code></p>
+
+<p>With this command we instructed SQLIVE to send all the changes relative to the virtual view "negative<em>balance" to the file /tmp/negative</em>balance.
+In return, SQLIVE gave us the session number "4023", which will be useful to retrieve the status of that connection.
+We used the option --stream, but we could have also used --cmd or --notify. The option --connect, when used in conjunction with --cmd, invokes
+the shell command passed as a parameter and sends the changes through stdin. The option --notify, instructs SQLIVE to only write the logical time
+of a change without the actual data (useful is one only cares if something has changed at all, not the actual data).</p>
+
+<p>Let's have a look at the file:</p>
+
+<p><code>
+$ tail /tmp/customer_orders
+1       993|Customer#000000993|56K JjC bMcgbXlJA4KI Icu uggsRoviMQm,F|7|...
+1       994|Customer#000000994|sZjdeW4LT9EKopmlv3M Xbnbe3gXQ9JkoxPv |16|...
+1       996|Customer#000000996|yjrSjcG z0Rm5PYrVMFTrU pFRMw|22|...
+...
+</code></p>
+
+<p>The format is pretty straight forward. It's a key/value format (separated by a tab) where the key is the number of repetition of a row.
+You can check the status of every connection at all times with the option "--sessions".</p>
+
+<p><code>
+$ sqlive --sessions --data /tmp/test.db
+4023    /negative_balance/      CONNECTED
+</code></p>
+
+<p>We can see that our connection is live. You can decide to disconnect a sessions with the option --disconnect.
+But note that sessions will automatically disconnect in case of a problem, although less common when using --stream,
+this could happen when using --cmd. If the command executed returns a non-zero status code, the session will automatically disconnect.
+The option --reconnect, restarts the session where it started to fail and sends all the data that was missed since the disconnection.</p>
+
+<p>Let's see what happens when the data changes.</p>
+
+<p><code>
+$ echo "delete from customer where c_custkey = 11;" | sqlive --data /tmp/test.db
+</code></p>
+
+<p>And see the effect in /tmp/negative_balance:</p>
+
+<p>```
+$ tail  /tmp/customer_orders
+...
+1       1000|Customer#000001000|hzM1shTwWlLuk|22|...</p>
+
+<p>0       11|Customer#000000011|PkWS 3HlXqwTuzrKg633BEi|23|...
+```</p>
+
+<p>You can see that a new line appeared notifying us that the customer 32 has been removed.
+If you paid attention, you can see that two empty lines where introduced before the notification.
+Those lines are there to notify that the database is starting a new transaction.</p>
+
+<h2>Diffing</h2>
+
+<p>Streaming changes is fine, but sometimes the rate of the changes is too high to be useful.
+Imagine a script that generates static html pages every hour. You might want to use a
+virtual view to only regenerate the pages that changed.
+You will soon find the process to be painful. You will need a daemon that watches the streaming
+file and keeps the data up-to-date.</p>
+
+<p>Fortunately, SQLIVE has an alternative: the --diff option.
+Let's create a new connection, this time without the associated --stream option.</p>
+
+<p><code>
+$ sqlive --data /tmp/test.db --connect negative_balance
+4053
+</code></p>
+
+<p>And use the session number to get a "diff":</p>
+
+<p><code>
+$ sqlive --diff 4053 --since 0 --data /tmp/test.db
+Time: 19
+0       11|Customer#000000011|PkWS 3HlXqwTuzrKg633BEi|23|...
+1       33|Customer#000000033|qFSlMuLucBmx9xnn5ib2csWUweg D|17|...
+1       37|Customer#000000037|7EV4Pwh,3SboctTWt|8|...
+1       64|Customer#000000064|MbCeGY20kaKK3oalJD,OT|3|...
+...
+</code></p>
+
+<p>Note that we used --diff in conjuction with --since. The --since option takes a timestamp produced by the database.
+The timestamp 0 corresponds to the beginning of times. So asking a diff since time 0 will get you all the data associated
+with a session.
+Now pay attention to the first line that was returned: it says, "Time: 19". This is the new timestamp that you will have to
+keep on your end.</p>
+
+<p>Now lets try to make modifications:</p>
+
+<p><code>
+$ echo "delete from customer where c_custkey = 33;" | sqlive --data /tmp/test.db
+</code></p>
+
+<p>And ask for the diff since time 19:</p>
+
+<p><code>
+$ sqlive --diff 4053 --since 19 --data /tmp/test.db | head
+Time: 22
+0       33|Customer#000000033|qFSlMuLucBmx9xnn5ib2csWUweg D|17|...
+</code></p>
+
+<p>The output gives us the next timestamp (22) plus the diff (the removal of the user 33).</p>
+
+<h2>Streaming vs Diffing?</h2>
+
+<p>So when should you use a stream? And when should you use a diff?
+You should use a stream if you need your changes to be live, and when you are confident that
+the process that handles the changes will be able to keep up with the write rate.
+In every other case, you should use a diff.
+2 important things about --diff:
+- You don't need a connection per diff. All the processes who need a diff can share the same connection.
+- You can have as many processes as you like asking for a diff (at any time), they don't require any additional memory.</p>
+
+<p>The second fact is probably surprising. Most streaming solution restart from a checkpoint and replay events when something went wrong.
+That's not how SQLIVE operates. SQLIVE is capable of producing a diff between now and any point in the past at no additional
+cost, because thoses diffs are maintained anyway.
+With that in mind, you should feel free to have as many processes as you like asking for diffs.</p>

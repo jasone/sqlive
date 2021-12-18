@@ -1,0 +1,3 @@
+#!/bin/bash
+
+cat docs_header.html docs_body.html docs_footer.html > ../website/docs.html
