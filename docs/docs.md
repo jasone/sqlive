@@ -1,4 +1,4 @@
-#               
+# 
 
 ## Download
 
@@ -94,9 +94,10 @@ Let's try to run a basic join:
 ```$ echo "select * from customer, orders where c_custkey = o_custkey;" | sqlive --data /tmp/test.db
 ```
 
-Surprisingly, this leads to an error.
+Surprisingly, this leads to an error (the error can be ignored with the option --always-allow-join):
 
-```select * from customer, orders where c_custkey = o_custkey;
+```$ echo "select * from customer, orders where c_custkey = o_custkey;" | sqlive --data /tmp/test.db
+select * from customer, orders where c_custkey = o_custkey;
 ^
 |
  ----- ERROR
@@ -110,8 +111,8 @@ PS2: don't forget you can add indexes to virtual views.
 ```
 
 The error message is pretty explicit. Joins outside of a virtual view are considered bad practice. But why is that?
-The reason is that a join is a very expensive operation. When you run it outside of a virtual view, you will have
-to repeat that operation every single time.
+The reason is that a join is an expensive operation. When you run it outside of a virtual view, you will have
+to repeat that operation every single time the query is run.
 A better approach is to create a virtual view once and for all and have all the subsequent queries
 share the same virtual view. Let's follow the advice given in the error message:
 
@@ -127,12 +128,12 @@ Let's find the orders from customer number 889.
 
 And that works for any query involving customers and orders. Instead of recomputing expensive joins every single time orders and customers are
 involved, you can run those queries directly on the virtual view customer_orders.
-To speed things up, we recomment you add indexes to your virtual views:
+To speed things up, we recommend you add indexes to your virtual views:
 
 ```$ echo "create index customer_orders_c_custkey ON customer_orders(c_custkey);" | sqlive --data /tmp/test.db
 ```
 
-If you are unsure about your queries, you can ask SQLIVE to list the indexes that were used for a particular query throuh the option --show-used-indexes.
+If you are unsure about your queries, you can ask SQLIVE to list the indexes that were used for a particular query through the option --show-used-indexes.
 This option is particularly useful when trying to optimize your queries.
 
 ```$ echo "select * from customer_orders where c_custkey = 889;" | sqlive --data /tmp/test.db --show-used-indexes
@@ -147,32 +148,36 @@ they can also be used to get notified when changes occurs.
 
 For example, let's create a query that tracks all the customer with a negative balance.
 
-```echo "create virtual view negative_balance as select * from customer where c_acctbal < 0.0;" | sqlive --data /tmp/test.db
+```$ echo "create virtual view negative_balance as select * from customer where c_acctbal < 0.0;" | sqlive --data /tmp/test.db
 ```
 
 The creation of the virtual view does not trigger notifications. We need to "connect" to that view in order to receive them.
 
 ```$ sqlive --data /tmp/test.db --connect negative_balance --stream /tmp/negative_balance
-4023
+6043
 ```
 
 With this command we instructed SQLIVE to send all the changes relative to the virtual view "negative\_balance" to the file /tmp/negative\_balance.
-In return, SQLIVE gave us the session number "4023", which will be useful to retrieve the status of that connection.
+In return, SQLIVE gave us the session number "6043", which will be useful to retrieve the status of that connection.
 
 Let's have a look at the stream:
 
-```$ tail /tmp/customer_orders
-1       993|Customer#000000993|56K JjC bMcgbXlJA4KI Icu uggsRoviMQm,F|7|...
-1       994|Customer#000000994|sZjdeW4LT9EKopmlv3M Xbnbe3gXQ9JkoxPv |16|...
-1       996|Customer#000000996|yjrSjcG z0Rm5PYrVMFTrU pFRMw|22|...
+```$ tail /tmp/negative_balance
+1       875|Customer#000000875|8pQ4YUYox0d|3|13-146-810-5423|-949.27999999899998|FURNITURE|ar theodolites snooze slyly. furiously express packages cajole blithely around the carefully r
+1       880|Customer#000000880|ogwHmUUFa1QB69pAoYAAoB0rjbdsVpAQ552e5Q,|8|18-763-990-8618|-77.629999999000006|FURNITURE|regular requests. regular deposits ar
+1       885|Customer#000000885|nNUbC73nPBCKLg0|5|15-874-471-4903|-959.94000000000005|HOUSEHOLD|sits impress regular deposits. slyly silent excuses grow
 ...
 ```
 
-The format is pretty straight forward. It's a key/value format (separated by a tab) where the key is the number of repetition of a row.
+The format is pretty straight forward. It's a key/value format (separated by a tab) where the key is the number of repetitions of a row.
+That number corresponds to the total number of rows with that value. So if a row was already present 23 times, and a transaction adds an additional instance of that row, that number would become 24.
+However, in practice, the number of repetition is always going to be 0 or 1 (0 for removal).
+Also note that for ephemeral streams (which will be introduced later), that number is always one.
+
 You can check the status of every connection at all times with the option "--sessions".
 
 ```$ sqlive --sessions --data /tmp/test.db
-4023    /negative_balance/      CONNECTED
+6043    /negative_balance/      CONNECTED
 ```
 
 We can see that our connection is live. You can decide to disconnect a sessions with the option --disconnect, but note that sessions will automatically disconnect in case of a problem.
@@ -185,58 +190,56 @@ Let's see what happens when the data changes.
 
 And see the effect in /tmp/negative_balance:
 
-```$ tail  /tmp/customer_orders
+```$ tail  /tmp/negative_balance
 ...
 <-------- EMPTY LINE
 <-------- EMPTY LINE
-0       11|Customer#000000011|PkWS 3HlXqwTuzrKg633BEi|23|...
+ 0     11|Customer#000000011|PkWS 3HlXqwTuzrKg633BEi|23|33-464-151-3439|-272.60000000000002|BUILDING|ckages. requests sleep slyly. quickly even pinto beans promise above the slyly regular pinto beans.
 ```
 
-You can see that a new line appeared notifying us that the customer 32 has been removed.
+A new line appeared notifying us that the customer 11 has been removed.
 If you paid attention, you can see that two empty lines where introduced before the notification.
-Those lines are there to notify that the database is starting a new transaction.
+Those lines are there to notify that the database finished a transaction (and is starting a new one). If you are ingesting the changes, you
+can safely assume that the database was in a consistent state at that point.
 
 ## Diffing
 
-Streaming changes is fine, but sometimes the rate of the changes is too high to be useful.
-Imagine a script that generates static html pages every hour. You might want to use a
-virtual view to only regenerate the pages that changed.
-You will soon find the process to be painful. You will need a daemon that watches the streaming
-file and keeps the data up-to-date.
+Streaming changes is fine, but the problem is that the changes are "pushed" to the user.
+Sometimes, we will need to operate the other way around: the user will want to "pull" changes,
+by asking periodically what has changed since the last time around.
 
-Fortunately, SQLIVE has an alternative: the --diff option.
+Fortunately, SQLIVE has the solution: the --diff option.
 Let's create a new connection, this time without the associated --stream option.
 
 ```$ sqlive --data /tmp/test.db --connect negative_balance
-4053
+6058
 ```
 
 And use the session number to get a "diff":
 
-```$ sqlive --diff 4053 --since 0 --data /tmp/test.db
-Time: 19
-0       11|Customer#000000011|PkWS 3HlXqwTuzrKg633BEi|23|...
-1       33|Customer#000000033|qFSlMuLucBmx9xnn5ib2csWUweg D|17|...
-1       37|Customer#000000037|7EV4Pwh,3SboctTWt|8|...
-1       64|Customer#000000064|MbCeGY20kaKK3oalJD,OT|3|...
+```$ sqlive --diff 6058 --since 0 --data /tmp/test.db
+Time: 22
+0       11|Customer#000000011|PkWS 3HlXqwTuzrKg633BEi|23|33-464-151-3439|-272.60000000000002|BUILDING|ckages. requests sleep slyly. quickly even pinto beans promise above the slyly regular pinto beans.
+1       33|Customer#000000033|qFSlMuLucBmx9xnn5ib2csWUweg D|17|27-375-391-1280|-78.560000000000002|AUTOMOBILE|s. slyly regular accounts are furiously. carefully pending requests
+1       37|Customer#000000037|7EV4Pwh,3SboctTWt|8|18-385-235-7162|-917.75|FURNITURE|ilent packages are carefully among the deposits. furiousl
 ...
 ```
 
 Note that we used --diff in conjuction with --since. The --since option takes a timestamp produced by the database.
 The timestamp 0 corresponds to the beginning of times. So asking a diff since time 0 will get you all the data associated
 with a session.
-Now pay attention to the first line that was returned: it says, "Time: 19". This is the new timestamp that you will have to keep for the next time around.
+Now pay attention to the first line that was returned: it says, "Time: 22". This is the new timestamp that you will have to keep for the next time around.
 
 Let's try to make modifications:
 
 ```$ echo "delete from customer where c_custkey = 33;" | sqlive --data /tmp/test.db
 ```
 
-And ask for the diff since time 19:
+And ask for the diff since time 22:
 
-```$ sqlive --diff 4053 --since 19 --data /tmp/test.db
-Time: 22
-0       33|Customer#000000033|qFSlMuLucBmx9xnn5ib2csWUweg D|17|...
+```$ sqlive --diff 6058 --since 22 --data /tmp/test.db
+Time: 25
+0       33|Customer#000000033|qFSlMuLucBmx9xnn5ib2csWUweg D|17|27-375-391-1280|-78.560000000000002|AUTOMOBILE|s. slyly regular accounts are furiously. carefully pending requests
 ```
 
 The output gives us the next timestamp (22) plus the diff (the removal of the user 33).
@@ -247,17 +250,18 @@ it convenient to run use cases that are polling data periodically.
 
 So when should you use a --stream? And when should you use a --diff?
 You should use --stream if you need your changes to be live, and when you are confident that
-the process that handles the changes will be able to keep up with the write rate.
+the process that handles the changes will be able to keep up with the write rate of the database.
 
 ## Streaming
 
 SQLIVE also supports ephemeral tables called streams. They work exactly like a normal
-sql table, except that they do not persist on disk. 
+sql table, except that they do not persist on disk.
 
-```echo "create stream customer_connect_log (clog_custkey INTEGER, clog_time INTEGER);" | sqlive --data /tmp/test.db
+```$ echo "create stream customer_connect_log (clog_custkey INTEGER, clog_time INTEGER);" | sqlive --data /tmp/test.db
 ```
 
-We just created a stream of data notifying us when a customer connects to the system.
+We just declared an ephemeral data stream called customer\_connect\_log.
+We can now use that table to log every time a customer connects to the system.
 The difference with a "normal" table, is that the data is ephemeral (it will not persist on disk).
 So what's the point of a stream you may ask? It comes in handy when trying to receive alerts.
 For example, imagine we wanted to receive and alert every time a customer with a negative balance connects
@@ -277,7 +281,7 @@ Step 2, we create a virtual view tracking connection of users with a negative ba
 Finally, we connect to that view:
 
 ```$ sqlive --connect negative_bal_connection --stream /tmp/negative_bal_connection --data /tmp/test.db
-5031
+7083
 ```
 
 Let's see what happens when we add data to the stream (using --load-csv is faster than INSERT statements when
@@ -289,20 +293,24 @@ manipulating streams):
 And check the result in /tmp/negative\_bal\_connection:
 
 ```$ tail -f /tmp/negative_bal_connection
-1       934|934|934|Customer#000000934|UMAFCPYfCxn LhawyoEYoU9GZC7TORCX|12|22-119-576-7222|-592.69000000000005|...
+1       934|934|934|Customer#000000934|UMAFCPYfCxn LhawyoEYoU9GZC7TORCX|12|22-119-576-7222|-592.69000000000005|AUTOMOBILE|fluffily requests. carefully even ideas snooze above the accounts. blithely bold platelets cajole
 ...
 ```
 
 As expected, we got notified every time a customer with a negative balance connected.
 In general, SQLIVE will never spawn threads or fork processes behind your back, to make the
 performance more predictable. However, you should feel free to add multiple processes to speedup the ingestion of
-data (Because SQLIVE supports multiple writers/readers).
+data, including when targetting the same stream (Because SQLIVE supports multiple writers/readers).
 In this case, we could for example get 10 processes writing on the stream customer\_log at the same time:
 
 ```$ for j in {1..10}; do (for i in {1..10000}; do echo "$i, $i"; done | sqlive --data /tmp/test.db --load-csv customer_connect_log)& done; wait
 ```
 
-Which, on a machine with 16 cores made the time go down from 1.632s to 0.319s.
+If you replace the '&' with a ';', you will see a dramatic slow down in the ingestion rate of
+the data.
+
+On a laptop with more than 10 cores, the sequential time is 1.632s, while only 0.319s when
+using 10 processes (so roughly 5X faster).
 
 ## Windows
 

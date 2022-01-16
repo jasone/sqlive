@@ -44,3 +44,46 @@
             <h1> </h1>
           </header>
           <article>
+<script>
+function setClipboard(text) {
+    var type = "text/plain";
+    var blob = new Blob([text], { type });
+    var data = [new ClipboardItem({ [type]: blob })];
+
+    navigator.clipboard.write(data).then(
+        function () {
+        /* success */
+        },
+        function () {
+        /* failure */
+        }
+    );
+}
+
+function CopyToClipboard(id) {
+    var r = document.createRange();
+    r.selectNode(document.getElementById(id));
+    window.getSelection().removeAllRanges();
+    window.getSelection().addRange(r);
+    document.execCommand('copy');
+    var text = window.getSelection().toString();
+    var result = "";
+    var inCommand = false;
+    for(let i = 0; i < text.length; i++) {
+        var c = text.charAt(i);
+        if(inCommand) {
+            result = result + c;
+        }
+        if(c == '$') {
+            inCommand = true;
+        }
+        if(c == '\n') {
+            inCommand = false;
+        }
+    }
+    text = result;
+    window.getSelection().removeAllRanges();
+    setClipboard(text);
+}
+</script>
+
