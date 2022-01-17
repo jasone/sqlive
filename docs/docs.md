@@ -127,6 +127,9 @@ share the same virtual view. Let's follow the advice given in the error message:
 ```
 
 This command created the virtual view "customer_orders", which can now be used like any other table.
+The differnce between a virtual view and a normal view is that the database will maintain that view up-to-date
+at all times. In this case that means that any change in the customer or order table will be reflected in the virtual view "customer_orders".
+This also implies that reading from a virtual view is very fast, because the data is already there.
 Let's find the orders from customer number 889.
 
 ```$ echo "select * from customer_orders where c_custkey = 889;" | sqlive --data /tmp/test.db
