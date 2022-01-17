@@ -10,26 +10,33 @@ For commercial use, please contact us at [contact@skiplabs.io](mailto:contact@sk
 
 ## Linux
 
-SQLIVE is only available for x64-Linux.
+SQLive is only available for x64-Linux.
 If you don't have linux on your machine, you can install [WSL](https://docs.microsoft.com/en-us/windows/wsl/install) on windows or
 [docker](https://docs.docker.com/desktop/mac/install/) for mac.
-Although SQLIVE runs on most versions of Linux, SkipLabs will only maintain a version running on the latest [ubuntu LTS](https://wiki.ubuntu.com/Releases).
+Although SQLive runs on most versions of Linux, SkipLabs will only maintain a version running on the latest [ubuntu LTS](https://wiki.ubuntu.com/Releases).
 We highly recommend you use that version,
 but if you need to run sqlive on a different platform, please contact us at [contact@skiplabs.io](mailto:contact@skiplabs.io).
+
+## SQL
+
+This documentations is not a good place to learn SQL. If you need to get started you can find a good introduction here: [https://www.w3schools.com/sql/](https://www.w3schools.com/sql/).
+The subset of SQL implemented by SQLive is the same as SQLite, you can find it here: [https://www.sqlite.org/lang.html](https://www.sqlite.org/lang.html).
 
 ## Install
 
 First, install the binary file (preferably in /usr/local/bin). Make sure you don't rename the original binary, because
-some SQLIVE updates will require you to export your data to a newer version of the database. So it is safer to keep all
-the different versions of SQLIVE around in case you need them.
+some SQLive updates will require you to export your data to a newer version of the database. So it is safer to keep all
+the different versions of SQLive around in case you need them.
 
-```$ sudo mv sqlive-linux-x64-0.9.bin /usr/local/bin
+```$ wget https://github.com/SkipLabs/sqlive/raw/main/bin/sqlive-linux-x64-0.9.bin
+$ chmod 755 sqlive-linux-x64-0.9.bin
+$ sudo mv sqlive-linux-x64-0.9.bin /usr/local/bin
 $ sudo ln -s /usr/local/bin/sqlive-linux-x64-0.9.bin /usr/local/bin/sqlive
 ```
 
 ## Initialization
 
-SQLIVE stores all of its data in a file specified by the user.
+SQLive stores all of its data in a file specified by the user.
 To initialize a database file, use the option --init.
 
 ```$ sqlive --init /tmp/test.db
@@ -77,7 +84,7 @@ CREATE TABLE orders (
 );
 ```
 
-Note that SQLIVE only supports 3 types:
+Note that SQLive only supports 3 types:
 64 bits integers (INTEGER),
 64 bits floating point numbers (FLOAT)
 and UTF-8 strings (TEXT).
@@ -85,7 +92,7 @@ and UTF-8 strings (TEXT).
 By looking at the schema, we can see that the two tables are related through the columns c\_custkey and o\_custkey.
 Each order identifies the customer that passed the order through a unique identifier (as it is often the case in
 relational databases). But what happens when a query needs to both process an order and lookup the data associated to the
-user that passed the order? This requires the use of a join, which you will see, work a bit differently in SQLIVE.
+user that passed the order? This requires the use of a join, which you will see, work a bit differently in SQLive.
 
 ## Joins
 
@@ -133,7 +140,7 @@ To speed things up, we recommend you add indexes to your virtual views:
 ```$ echo "create index customer_orders_c_custkey ON customer_orders(c_custkey);" | sqlive --data /tmp/test.db
 ```
 
-If you are unsure about your queries, you can ask SQLIVE to list the indexes that were used for a particular query through the option --show-used-indexes.
+If you are unsure about your queries, you can ask SQLive to list the indexes that were used for a particular query through the option --show-used-indexes.
 This option is particularly useful when trying to optimize your queries.
 
 ```$ echo "select * from customer_orders where c_custkey = 889;" | sqlive --data /tmp/test.db --show-used-indexes
@@ -157,8 +164,8 @@ The creation of the virtual view does not trigger notifications. We need to "con
 6043
 ```
 
-With this command we instructed SQLIVE to send all the changes relative to the virtual view "negative\_balance" to the file /tmp/negative\_balance.
-In return, SQLIVE gave us the session number "6043", which will be useful to retrieve the status of that connection.
+With this command we instructed SQLive to send all the changes relative to the virtual view "negative\_balance" to the file /tmp/negative\_balance.
+In return, SQLive gave us the session number "6043", which will be useful to retrieve the status of that connection.
 
 Let's have a look at the stream:
 
@@ -208,7 +215,7 @@ Streaming changes is fine, but the problem is that the changes are "pushed" to t
 Sometimes, we will need to operate the other way around: the user will want to "pull" changes,
 by asking periodically what has changed since the last time around.
 
-Fortunately, SQLIVE has the solution: the --diff option.
+Fortunately, SQLive has the solution: the --diff option.
 Let's create a new connection, this time without the associated --stream option.
 
 ```$ sqlive --data /tmp/test.db --connect negative_balance
@@ -254,7 +261,7 @@ the process that handles the changes will be able to keep up with the write rate
 
 ## Streaming
 
-SQLIVE also supports ephemeral tables called streams. They work exactly like a normal
+SQLive also supports ephemeral tables called streams. They work exactly like a normal
 sql table, except that they do not persist on disk.
 
 ```$ echo "create stream customer_connect_log (clog_custkey INTEGER, clog_time INTEGER);" | sqlive --data /tmp/test.db
@@ -298,9 +305,9 @@ And check the result in /tmp/negative\_bal\_connection:
 ```
 
 As expected, we got notified every time a customer with a negative balance connected.
-In general, SQLIVE will never spawn threads or fork processes behind your back, to make the
+In general, SQLive will never spawn threads or fork processes behind your back, to make the
 performance more predictable. However, you should feel free to add multiple processes to speedup the ingestion of
-data, including when targetting the same stream (Because SQLIVE supports multiple writers/readers).
+data, including when targetting the same stream (Because SQLive supports multiple writers/readers).
 In this case, we could for example get 10 processes writing on the stream customer\_log at the same time:
 
 ```$ for j in {1..10}; do (for i in {1..10000}; do echo "$i, $i"; done | sqlive --data /tmp/test.db --load-csv customer_connect_log)& done; wait
