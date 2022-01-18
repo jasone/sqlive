@@ -322,7 +322,7 @@ the data.</p>
 <p>On a laptop with more than 10 cores, the sequential time is 1.632s, while only 0.319s when
 using 10 processes (so roughly 5X faster).</p>
 
-<h2>Windows</h2>
+<h2>Real-time analytics.</h2>
 
 <p>As mentioned earlier, streams are ephemeral. So what happens when using aggregate functions on them?</p>
 
@@ -335,8 +335,8 @@ Cannot use a stream for aggregates, use a window instead
 </code></p>
 
 <p>We get an error. The error invites us to use a "window". A window is exactly like a stream, except that
-it will persist data for a certain time. For example, let's say we want to keep the data received in the last
-hour.</p>
+it will persist data for a certain time. It's the kind of table you will need to compute real-time analytics.
+For example, let's say we want to keep the data received in the last hour.</p>
 
 <p><code>$ echo "create window 3600 customer_connect_window (cw_custkey INTEGER, cw_time INTEGER);" | sqlive --data /tmp/test.db
 </code></p>
@@ -344,12 +344,67 @@ hour.</p>
 <p>The number 3600 corresponds to the number of seconds we want to persist the data.</p>
 
 <p>Sometimes, instead of using the system clock, you will want to use a timestamp that was passed directly in the data.
-When that's the case, annotate the field that corresponds to a timestamp as such:</p>
+When that's the case, annotate the field that corresponds to a timestamp as such (pay attention to the TIMESTAMP keyword):</p>
 
 <p><code>$ echo "create window 3600 customer_connect_window (cw_custkey INTEGER, cw_time INTEGER TIMESTAMP);" | sqlive --data /tmp/test.db
+</code></p>
+
+<p>Now that we successfully created a window. Let's run a query on it. Let's compute the average
+account balance of the customers who connected in the last hour.
+As usual, we first compute the join as a seperate step:</p>
+
+<p><code>$ echo "create virtual view customer_window as select * from customer_connect_window, customer where cw_custkey = c_custkey;" | sqlive --data /tmp/test.db
+</code></p>
+
+<p>And then produce the average based on that virtual view:</p>
+
+<p><code>$ echo "create virtual view avg_balance as select avg(c_acctbal) from customer_window;" | sqlive --data /tmp/test.db
+</code></p>
+
+<p>Now let's connect to that view:</p>
+
+<p><code>$ sqlive --connect avg_balance --stream /tmp/avg_balance --data /tmp/test.db
+</code></p>
+
+<p>And add some data:</p>
+
+<p><code>$ for i in {1..500}; do echo "$i, $i"; done | sqlive --data /tmp/test.db --load-csv customer_connect_window
+</code></p>
+
+<p>And look at the stream of average:</p>
+
+<p><code>$ tail /tmp/avg_balance
+...
+1       711.55999999899996
+&lt;--- NEWLINE
+&lt;--- NEWLINE
+1       4531.63158634502
+</code></p>
+
+<p>So you may wonder, how often is /tmp/avg_balance updated? On every single change?
+Windows are different from streams and normal sql tables in that regard.
+When using a window, the database can decide to regroup changes together.
+So in this case, there might have been intermediate values between 711.5 and 4531.6 that were
+never sent to the stream of changes.
+The reason is that most of the time, we don't care how many elements are exactly present in given windows. So regrouping insertions makes sense (and speeds things up).
+If you are unhappy with that behavior, and you want notifications for every single window insert to be triggered, you can pass the option --force-window-update, which will make windows work like streams (or normal sql tables) in that regard.</p>
+
+<p>Let's try it:</p>
+
+<p><code>$ for i in {500..1000}; do echo "$i, $i"; done | sqlive --data /tmp/test.db --load-csv customer_connect_window --force-window-update
+</code></p>
+
+<p>If you look at the file /tmp/avg_balance you can see that all the updates are there.</p>
+
+<p><code>$ wc /tmp/avg_balance
+ 1509  1005 11507 /tmp/avg_balance
 </code></p>
 
 <h2>Streams vs Windows</h2>
 
 <p>You should always prefer streams to windows: they are faster and require less memory.
 So only use windows when you have to use an aggregate function, typically for analytics.</p>
+
+<h2>Thank you for reading!</h2>
+
+<h1> </h1>

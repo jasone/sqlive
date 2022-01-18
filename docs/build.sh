@@ -1,7 +1,7 @@
 #!/bin/bash
 
 rm -f docs_body.html commands.txt commands.sh commands_result commands_expected
-rm -f /tmp/test.db /tmp/negative_balance /tmp/customer_orders
+rm -f /tmp/test.db /tmp/negative_balance /tmp/customer_orders /tmp/avg_balance
 
 (cd ../gen && cat ../docs/docs.md | sk > ../docs/commands.txt)
 
