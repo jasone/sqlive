@@ -126,15 +126,16 @@ share the same virtual view. Let's follow the advice given in the error message:
 ```$ echo "create virtual view customer_orders as select * from customer, orders where c_custkey = o_custkey;" | sqlive --data /tmp/test.db
 ```
 
-This command created the virtual view "customer_orders", which can now be used like any other table.
-The differnce between a virtual view and a normal view is that the database will maintain that view up-to-date
-at all times. In this case that means that any change in the customer or order table will be reflected in the virtual view "customer_orders".
+This command created the virtual view customer\_orders, which can now be used like any other table.
+The difference between a virtual view and a normal view is that the database will maintain that view up-to-date
+at all times. In this case that means that any change in the customer or order table will be reflected in the virtual view customer\_orders.
 This also implies that reading from a virtual view is very fast, because the data is already there.
 Let's find the orders from customer number 889.
 
 ```$ echo "select * from customer_orders where c_custkey = 889;" | sqlive --data /tmp/test.db
 889|Customer#000000889|pLvfd7drswfAcH8oh2seEct|13|23-625-369-6714|3635.3499999989999|FURNITURE|inal ideas. slowly pending frays are. fluff|931|889|F|155527.98000000001|1992-12-07|1-URGENT|Clerk#000000881|0|ss packages haggle furiously express, regular deposits. even, e
 ```
+
 
 And that works for any query involving customers and orders. Instead of recomputing expensive joins every single time orders and customers are
 involved, you can run those queries directly on the virtual view customer_orders.
@@ -143,6 +144,7 @@ To speed things up, we recommend you add indexes to your virtual views:
 ```$ echo "create index customer_orders_c_custkey ON customer_orders(c_custkey);" | sqlive --data /tmp/test.db
 ```
 
+
 If you are unsure about your queries, you can ask SQLive to list the indexes that were used for a particular query through the option --show-used-indexes.
 This option is particularly useful when trying to optimize your queries.
 
@@ -150,6 +152,7 @@ This option is particularly useful when trying to optimize your queries.
 USING INDEX: customer_orders_c_custkey
 ...
 ```
+
 
 ## Connections
 
@@ -161,11 +164,13 @@ For example, let's create a query that tracks all the customer with a negative b
 ```$ echo "create virtual view negative_balance as select * from customer where c_acctbal < 0.0;" | sqlive --data /tmp/test.db
 ```
 
+
 The creation of the virtual view does not trigger notifications. We need to "connect" to that view in order to receive them.
 
 ```$ sqlive --data /tmp/test.db --connect negative_balance --stream /tmp/negative_balance
 6043
 ```
+
 
 With this command we instructed SQLive to send all the changes relative to the virtual view "negative\_balance" to the file /tmp/negative\_balance.
 In return, SQLive gave us the session number "6043", which will be useful to retrieve the status of that connection.
@@ -190,6 +195,7 @@ You can check the status of every connection at all times with the option "--ses
 6043    /negative_balance/      CONNECTED
 ```
 
+
 We can see that our connection is live. You can decide to disconnect a sessions with the option --disconnect, but note that sessions will automatically disconnect in case of a problem.
 The option --reconnect, restarts the session where it started to fail and sends all the data that was missed since the disconnection.
 
@@ -197,6 +203,7 @@ Let's see what happens when the data changes.
 
 ```$ echo "delete from customer where c_custkey = 11;" | sqlive --data /tmp/test.db
 ```
+
 
 And see the effect in /tmp/negative_balance:
 
@@ -206,6 +213,7 @@ And see the effect in /tmp/negative_balance:
 <-------- EMPTY LINE
  0     11|Customer#000000011|PkWS 3HlXqwTuzrKg633BEi|23|33-464-151-3439|-272.60000000000002|BUILDING|ckages. requests sleep slyly. quickly even pinto beans promise above the slyly regular pinto beans.
 ```
+
 
 A new line appeared notifying us that the customer 11 has been removed.
 If you paid attention, you can see that two empty lines where introduced before the notification.
@@ -303,7 +311,10 @@ manipulating streams):
 And check the result in /tmp/negative\_bal\_connection:
 
 ```$ tail -f /tmp/negative_bal_connection
-1       934|934|934|Customer#000000934|UMAFCPYfCxn LhawyoEYoU9GZC7TORCX|12|22-119-576-7222|-592.69000000000005|AUTOMOBILE|fluffily requests. carefully even ideas snooze above the accounts. blithely bold platelets cajole
+0       978|978|978|Customer#000000978|zpvQ6LYE89Inl40Yz,7NJ|24|34-261-243-2624|-50.509999999000001|BUILDING|ely unusual packages nag fluffily above the quickly regular requests. regular accounts run. blithely
+
+
+1       995|995|995|Customer#000000995|5tCSAsm4qL5OvHdRZsiwSlVTdqPZws3f|13|23-272-700-1002|-341.79000000000002|BUILDING|wake slyly fluffily unusual requests. stealthily regular pinto beans are along the slyly final dugouts. slyly 
 ...
 ```
 
@@ -338,16 +349,11 @@ We get an error. The error invites us to use a "window". A window is exactly lik
 it will persist data for a certain time. It's the kind of table you will need to compute real-time analytics.
 For example, let's say we want to keep the data received in the last hour.
 
-```$ echo "create window 3600 customer_connect_window (cw_custkey INTEGER, cw_time INTEGER);" | sqlive --data /tmp/test.db
+```$ echo "create window 3600 customer_connect_window (cw_time INTEGER, cw_custkey INTEGER);" | sqlive --data /tmp/test.db
 ```
 
+The first column of a window is always expected to be a timestamp (an integer corresponding to a number of seconds since a fixed time in the past).
 The number 3600 corresponds to the number of seconds we want to persist the data.
-
-Sometimes, instead of using the system clock, you will want to use a timestamp that was passed directly in the data.
-When that's the case, annotate the field that corresponds to a timestamp as such (pay attention to the TIMESTAMP keyword):
-
-```$ echo "create window 3600 customer_connect_window (cw_custkey INTEGER, cw_time INTEGER TIMESTAMP);" | sqlive --data /tmp/test.db
-```
 
 Now that we successfully created a window. Let's run a query on it. Let's compute the average
 account balance of the customers who connected in the last hour.
@@ -387,7 +393,8 @@ When using a window, the database can decide to regroup changes together.
 So in this case, there might have been intermediate values between 711.5 and 4531.6 that were
 never sent to the stream of changes.
 The reason is that most of the time, we don't care how many elements are exactly present in given windows. So regrouping insertions makes sense (and speeds things up).
-If you are unhappy with that behavior, and you want notifications for every single window insert to be triggered, you can pass the option --force-window-update, which will make windows work like streams (or normal sql tables) in that regard.
+If you are unhappy with that behavior, and you want notifications for every single window insert to be triggered, you can pass the option --force-window-update,
+which will make windows work like streams (or normal sql tables) in that regard.
 
 Let's try it:
 
@@ -399,6 +406,21 @@ If you look at the file /tmp/avg\_balance you can see that all the updates are t
 ```$ wc /tmp/avg_balance
  1509  1005 11507 /tmp/avg_balance
 ```
+
+## time and id
+
+Sometimes, you will want the database to generate a timestamp for you.
+When that's the case, you can use the "time" function.
+
+```$ echo "insert into customer_connect_window values(time(), 34);" | sqlive --data /tmp/test.db
+```
+
+Similarly, we can generate primary keys by using the function "id".
+
+```$ echo "begin transaction; insert into orders values (id('a'), 568, 'F', 133466.829999999, '1992-01-04', '5-LOW', 'Clerk#000000339', 0, ''); commit;" | sqlive --data /tmp/test.db
+```
+The other function that can be used in an insert is called "id", it generates a unique identifier.
+id takes as a parameter a user defined name, which makes it convenient to 
 
 ## Streams vs Windows
 

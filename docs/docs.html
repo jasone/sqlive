@@ -215,9 +215,9 @@ share the same virtual view. Let's follow the advice given in the error message:
 <p><pre><code id="code215" class="hljs">$ echo "create virtual view customer_orders as select * from customer, orders where c_custkey = o_custkey;" | sqlive --data /tmp/test.db
 </code><button style="float: right;" onclick="CopyToClipboard('code215');return false;">Copy</button><div>  </div></pre></p>
 
-<p>This command created the virtual view "customer<em>orders", which can now be used like any other table.
-The differnce between a virtual view and a normal view is that the database will maintain that view up-to-date
-at all times. In this case that means that any change in the customer or order table will be reflected in the virtual view "customer</em>orders".
+<p>This command created the virtual view customer_orders, which can now be used like any other table.
+The difference between a virtual view and a normal view is that the database will maintain that view up-to-date
+at all times. In this case that means that any change in the customer or order table will be reflected in the virtual view customer_orders.
 This also implies that reading from a virtual view is very fast, because the data is already there.
 Let's find the orders from customer number 889.</p>
 
@@ -391,10 +391,12 @@ manipulating streams):</p>
 
 <p>And check the result in /tmp/negative_bal_connection:</p>
 
-<p><pre><code id="code394" class="hljs">$ tail -f /tmp/negative_bal_connection
-1       934|934|934|Customer#000000934|UMAFCPYfCxn LhawyoEYoU9GZC7TORCX|12|22-119-576-7222|-592.69000000000005|AUTOMOBILE|fluffily requests. carefully even ideas snooze above the accounts. blithely bold platelets cajole
+<p>```$ tail -f /tmp/negative<em>bal</em>connection
+0       978|978|978|Customer#000000978|zpvQ6LYE89Inl40Yz,7NJ|24|34-261-243-2624|-50.509999999000001|BUILDING|ely unusual packages nag fluffily above the quickly regular requests. regular accounts run. blithely</p>
+
+<p>1       995|995|995|Customer#000000995|5tCSAsm4qL5OvHdRZsiwSlVTdqPZws3f|13|23-272-700-1002|-341.79000000000002|BUILDING|wake slyly fluffily unusual requests. stealthily regular pinto beans are along the slyly final dugouts. slyly 
 ...
-</code><button style="float: right;" onclick="CopyToClipboard('code394');return false;">Copy</button><div>  </div></pre></p>
+```</p>
 
 <p>As expected, we got notified every time a customer with a negative balance connected.
 In general, SQLive will never spawn threads or fork processes behind your back, to make the
@@ -402,8 +404,8 @@ performance more predictable. However, you should feel free to add multiple proc
 data, including when targetting the same stream (Because SQLive supports multiple writers/readers).
 In this case, we could for example get 10 processes writing on the stream customer_log at the same time:</p>
 
-<p><pre><code id="code405" class="hljs">$ for j in {1..10}; do (for i in {1..10000}; do echo "$i, $i"; done | sqlive --data /tmp/test.db --load-csv customer_connect_log)&amp; done; wait
-</code><button style="float: right;" onclick="CopyToClipboard('code405');return false;">Copy</button><div>  </div></pre></p>
+<p><pre><code id="code407" class="hljs">$ for j in {1..10}; do (for i in {1..10000}; do echo "$i, $i"; done | sqlive --data /tmp/test.db --load-csv customer_connect_log)&amp; done; wait
+</code><button style="float: right;" onclick="CopyToClipboard('code407');return false;">Copy</button><div>  </div></pre></p>
 
 <p>If you replace the '&amp;' with a ';', you will see a dramatic slow down in the ingestion rate of
 the data.</p>
@@ -415,60 +417,55 @@ using 10 processes (so roughly 5X faster).</p>
 
 <p>As mentioned earlier, streams are ephemeral. So what happens when using aggregate functions on them?</p>
 
-<p><pre><code id="code418" class="hljs">$ echo "select count(*) from customer_connect_log;" | sqlive --data /tmp/test.db
+<p><pre><code id="code420" class="hljs">$ echo "select count(*) from customer_connect_log;" | sqlive --data /tmp/test.db
 ^
 |
  ----- ERROR
 Error: line 1, characters 0-0:
 Cannot use a stream for aggregates, use a window instead
-</code><button style="float: right;" onclick="CopyToClipboard('code418');return false;">Copy</button><div>  </div></pre></p>
+</code><button style="float: right;" onclick="CopyToClipboard('code420');return false;">Copy</button><div>  </div></pre></p>
 
 <p>We get an error. The error invites us to use a "window". A window is exactly like a stream, except that
 it will persist data for a certain time. It's the kind of table you will need to compute real-time analytics.
 For example, let's say we want to keep the data received in the last hour.</p>
 
-<p><pre><code id="code430" class="hljs">$ echo "create window 3600 customer_connect_window (cw_custkey INTEGER, cw_time INTEGER);" | sqlive --data /tmp/test.db
-</code><button style="float: right;" onclick="CopyToClipboard('code430');return false;">Copy</button><div>  </div></pre></p>
+<p><pre><code id="code432" class="hljs">$ echo "create window 3600 customer_connect_window (cw_time INTEGER, cw_custkey INTEGER);" | sqlive --data /tmp/test.db
+</code><button style="float: right;" onclick="CopyToClipboard('code432');return false;">Copy</button><div>  </div></pre></p>
 
-<p>The number 3600 corresponds to the number of seconds we want to persist the data.</p>
-
-<p>Sometimes, instead of using the system clock, you will want to use a timestamp that was passed directly in the data.
-When that's the case, annotate the field that corresponds to a timestamp as such (pay attention to the TIMESTAMP keyword):</p>
-
-<p><pre><code id="code438" class="hljs">$ echo "create window 3600 customer_connect_window (cw_custkey INTEGER, cw_time INTEGER TIMESTAMP);" | sqlive --data /tmp/test.db
-</code><button style="float: right;" onclick="CopyToClipboard('code438');return false;">Copy</button><div>  </div></pre></p>
+<p>The first column of a window is always expected to be a timestamp (an integer corresponding to a number of seconds since a fixed time in the past).
+The number 3600 corresponds to the number of seconds we want to persist the data.</p>
 
 <p>Now that we successfully created a window. Let's run a query on it. Let's compute the average
 account balance of the customers who connected in the last hour.
 As usual, we first compute the join as a seperate step:</p>
 
-<p><pre><code id="code445" class="hljs">$ echo "create virtual view customer_window as select * from customer_connect_window, customer where cw_custkey = c_custkey;" | sqlive --data /tmp/test.db
-</code><button style="float: right;" onclick="CopyToClipboard('code445');return false;">Copy</button><div>  </div></pre></p>
+<p><pre><code id="code442" class="hljs">$ echo "create virtual view customer_window as select * from customer_connect_window, customer where cw_custkey = c_custkey;" | sqlive --data /tmp/test.db
+</code><button style="float: right;" onclick="CopyToClipboard('code442');return false;">Copy</button><div>  </div></pre></p>
 
 <p>And then produce the average based on that virtual view:</p>
 
-<p><pre><code id="code450" class="hljs">$ echo "create virtual view avg_balance as select avg(c_acctbal) from customer_window;" | sqlive --data /tmp/test.db
-</code><button style="float: right;" onclick="CopyToClipboard('code450');return false;">Copy</button><div>  </div></pre></p>
+<p><pre><code id="code447" class="hljs">$ echo "create virtual view avg_balance as select avg(c_acctbal) from customer_window;" | sqlive --data /tmp/test.db
+</code><button style="float: right;" onclick="CopyToClipboard('code447');return false;">Copy</button><div>  </div></pre></p>
 
 <p>Now let's connect to that view:</p>
 
-<p><pre><code id="code455" class="hljs">$ sqlive --connect avg_balance --stream /tmp/avg_balance --data /tmp/test.db
-</code><button style="float: right;" onclick="CopyToClipboard('code455');return false;">Copy</button><div>  </div></pre></p>
+<p><pre><code id="code452" class="hljs">$ sqlive --connect avg_balance --stream /tmp/avg_balance --data /tmp/test.db
+</code><button style="float: right;" onclick="CopyToClipboard('code452');return false;">Copy</button><div>  </div></pre></p>
 
 <p>And add some data:</p>
 
-<p><pre><code id="code460" class="hljs">$ for i in {1..500}; do echo "$i, $i"; done | sqlive --data /tmp/test.db --load-csv customer_connect_window
-</code><button style="float: right;" onclick="CopyToClipboard('code460');return false;">Copy</button><div>  </div></pre></p>
+<p><pre><code id="code457" class="hljs">$ for i in {1..500}; do echo "$i, $i"; done | sqlive --data /tmp/test.db --load-csv customer_connect_window
+</code><button style="float: right;" onclick="CopyToClipboard('code457');return false;">Copy</button><div>  </div></pre></p>
 
 <p>And look at the stream of average:</p>
 
-<p><pre><code id="code465" class="hljs">$ tail /tmp/avg_balance
+<p><pre><code id="code462" class="hljs">$ tail /tmp/avg_balance
 ...
 1       711.55999999899996
 &lt;--- NEWLINE
 &lt;--- NEWLINE
 1       4531.63158634502
-</code><button style="float: right;" onclick="CopyToClipboard('code465');return false;">Copy</button><div>  </div></pre></p>
+</code><button style="float: right;" onclick="CopyToClipboard('code462');return false;">Copy</button><div>  </div></pre></p>
 
 <p>So you may wonder, how often is /tmp/avg_balance updated? On every single change?
 Windows are different from streams and normal sql tables in that regard.
@@ -476,18 +473,34 @@ When using a window, the database can decide to regroup changes together.
 So in this case, there might have been intermediate values between 711.5 and 4531.6 that were
 never sent to the stream of changes.
 The reason is that most of the time, we don't care how many elements are exactly present in given windows. So regrouping insertions makes sense (and speeds things up).
-If you are unhappy with that behavior, and you want notifications for every single window insert to be triggered, you can pass the option --force-window-update, which will make windows work like streams (or normal sql tables) in that regard.</p>
+If you are unhappy with that behavior, and you want notifications for every single window insert to be triggered, you can pass the option --force-window-update,
+which will make windows work like streams (or normal sql tables) in that regard.</p>
 
 <p>Let's try it:</p>
 
-<p><pre><code id="code483" class="hljs">$ for i in {500..1000}; do echo "$i, $i"; done | sqlive --data /tmp/test.db --load-csv customer_connect_window --force-window-update
-</code><button style="float: right;" onclick="CopyToClipboard('code483');return false;">Copy</button><div>  </div></pre></p>
+<p><pre><code id="code481" class="hljs">$ for i in {500..1000}; do echo "$i, $i"; done | sqlive --data /tmp/test.db --load-csv customer_connect_window --force-window-update
+</code><button style="float: right;" onclick="CopyToClipboard('code481');return false;">Copy</button><div>  </div></pre></p>
 
 <p>If you look at the file /tmp/avg_balance you can see that all the updates are there.</p>
 
-<p><pre><code id="code488" class="hljs">$ wc /tmp/avg_balance
+<p><pre><code id="code486" class="hljs">$ wc /tmp/avg_balance
  1509  1005 11507 /tmp/avg_balance
-</code><button style="float: right;" onclick="CopyToClipboard('code488');return false;">Copy</button><div>  </div></pre></p>
+</code><button style="float: right;" onclick="CopyToClipboard('code486');return false;">Copy</button><div>  </div></pre></p>
+
+<h2>time and id</h2>
+
+<p>Sometimes, you will want the database to generate a timestamp for you.
+When that's the case, you can use the "time" function.</p>
+
+<p><pre><code id="code495" class="hljs">$ echo "insert into customer_connect_window values(time(), 34);" | sqlive --data /tmp/test.db
+</code><button style="float: right;" onclick="CopyToClipboard('code495');return false;">Copy</button><div>  </div></pre></p>
+
+<p>Similarly, we can generate primary keys by using the function "id".</p>
+
+<p><pre><code id="code500" class="hljs">$ echo "begin transaction; insert into orders values (id('a'), 568, 'F', 133466.829999999, '1992-01-04', '5-LOW', 'Clerk#000000339', 0, ''); commit;" | sqlive --data /tmp/test.db
+</code><button style="float: right;" onclick="CopyToClipboard('code500');return false;">Copy</button><div>  </div></pre>
+The other function that can be used in an insert is called "id", it generates a unique identifier.
+id takes as a parameter a user defined name, which makes it convenient to </p>
 
 <h2>Streams vs Windows</h2>
 

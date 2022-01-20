@@ -2,6 +2,7 @@
 
 rm -f docs_body.html commands.txt commands.sh commands_result commands_expected
 rm -f /tmp/test.db /tmp/negative_balance /tmp/customer_orders /tmp/avg_balance
+rm -f /tmp/negative_bal_connection
 
 (cd ../gen && cat ../docs/docs.md | sk > ../docs/commands.txt)
 
