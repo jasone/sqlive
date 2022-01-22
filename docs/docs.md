@@ -260,7 +260,7 @@ Time: 25
 0       33|Customer#000000033|qFSlMuLucBmx9xnn5ib2csWUweg D|17|27-375-391-1280|-78.560000000000002|AUTOMOBILE|s. slyly regular accounts are furiously. carefully pending requests
 ```
 
-The output gives us the next timestamp (22) plus the diff (the removal of the user 33).
+The output gives us the next timestamp (25) plus the diff (the removal of the user 33).
 You can repeat that operation as often as you want, at the rate you want, which makes
 it convenient to run use cases that are polling data periodically.
 
