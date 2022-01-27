@@ -322,7 +322,7 @@ As expected, we got notified every time a customer with a negative balance conne
 In general, SQLive will never spawn threads or fork processes behind your back, to make the
 performance more predictable. However, you should feel free to add multiple processes to speedup the ingestion of
 data, including when targetting the same stream (Because SQLive supports multiple writers/readers).
-In this case, we could for example get 10 processes writing on the stream customer\_log at the same time:
+In this case, we could for example get 10 processes writing on the stream customer\_connect\_log at the same time:
 
 ```$ for j in {1..10}; do (for i in {1..10000}; do echo "$i, $i"; done | sqlive --data /tmp/test.db --load-csv customer_connect_log)& done; wait
 ```
