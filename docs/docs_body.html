@@ -20,7 +20,7 @@ but if you need to run sqlive on a different platform, please contact us at <a h
 <h2>SQL</h2>
 
 <p>This documentations is not a good place to learn SQL. If you need to get started you can find a good introduction here: <a href="https://www.w3schools.com/sql/">https://www.w3schools.com/sql/</a>.
-The subset of SQL implemented by SQLive is the same as SQLite, you can find it here: <a href="https://www.sqlite.org/lang.html">https://www.sqlite.org/lang.html</a>.</p>
+The subset of SQL implemented by SQLive is the same as SQLite, you can find it here: <a href="https://www.sqlite.org/lang.html">https://www.sqlite.org/lang.html</a>. The API to access SQLive is command-line based for now. If you need a driver please contact us at: <a href="mailto:contact@skiplabs.io">contact@skiplabs.io</a>.</p>
 
 <h2>Install</h2>
 
@@ -252,7 +252,7 @@ Time: 25
 0       33|Customer#000000033|qFSlMuLucBmx9xnn5ib2csWUweg D|17|27-375-391-1280|-78.560000000000002|AUTOMOBILE|s. slyly regular accounts are furiously. carefully pending requests
 </code></p>
 
-<p>The output gives us the next timestamp (22) plus the diff (the removal of the user 33).
+<p>The output gives us the next timestamp (25) plus the diff (the removal of the user 33).
 You can repeat that operation as often as you want, at the rate you want, which makes
 it convenient to run use cases that are polling data periodically.</p>
 
@@ -403,20 +403,23 @@ which will make windows work like streams (or normal sql tables) in that regard.
 <p>Sometimes, you will want the database to generate a timestamp for you.
 When that's the case, you can use the "time" function.</p>
 
-<p><code>$ echo "insert into customer_connect_window values(time(), 34);" | sqlive --data /tmp/test.db
-</code></p>
+<p>$ echo "insert into customer<em>connect</em>window values(time(), 34);" | sqlive --data /tmp/test.db</p>
 
 <p>Similarly, we can generate primary keys by using the function "id".</p>
 
-<p><code>$ echo "begin transaction; insert into orders values (id('a'), 568, 'F', 133466.829999999, '1992-01-04', '5-LOW', 'Clerk#000000339', 0, ''); commit;" | sqlive --data /tmp/test.db
-</code>
-The other function that can be used in an insert is called "id", it generates a unique identifier.
+<p>$ echo "begin transaction; insert into orders values (id('a'), 568, 'F', 133466.829999999, '1992-01-04', '5-LOW', 'Clerk#000000339', 0, ''); commit;" | sqlive --data /tmp/test.db</p>
+
+<p>The other function that can be used in an insert is called "id", it generates a unique identifier.
 id takes as a parameter a user defined name, which makes it convenient to </p>
 
 <h2>Streams vs Windows</h2>
 
 <p>You should always prefer streams to windows: they are faster and require less memory.
 So only use windows when you have to use an aggregate function, typically for analytics.</p>
+
+<h2>Bug report</h2>
+
+<p>Feel free to file github issues here: <a href="https://github.com/SkipLabs/sqlive">https://github.com/SkipLabs/sqlive</a></p>
 
 <h2>Thank you for reading!</h2>
 

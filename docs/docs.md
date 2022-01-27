@@ -20,7 +20,7 @@ but if you need to run sqlive on a different platform, please contact us at [con
 ## SQL
 
 This documentations is not a good place to learn SQL. If you need to get started you can find a good introduction here: [https://www.w3schools.com/sql/](https://www.w3schools.com/sql/).
-The subset of SQL implemented by SQLive is the same as SQLite, you can find it here: [https://www.sqlite.org/lang.html](https://www.sqlite.org/lang.html).
+The subset of SQL implemented by SQLive is the same as SQLite, you can find it here: [https://www.sqlite.org/lang.html](https://www.sqlite.org/lang.html). The API to access SQLive is command-line based for now. If you need a driver please contact us at: [contact@skiplabs.io](mailto:contact@skiplabs.io).
 
 ## Install
 
@@ -412,13 +412,13 @@ If you look at the file /tmp/avg\_balance you can see that all the updates are t
 Sometimes, you will want the database to generate a timestamp for you.
 When that's the case, you can use the "time" function.
 
-```$ echo "insert into customer_connect_window values(time(), 34);" | sqlive --data /tmp/test.db
-```
+$ echo "insert into customer_connect_window values(time(), 34);" | sqlive --data /tmp/test.db
+
 
 Similarly, we can generate primary keys by using the function "id".
 
-```$ echo "begin transaction; insert into orders values (id('a'), 568, 'F', 133466.829999999, '1992-01-04', '5-LOW', 'Clerk#000000339', 0, ''); commit;" | sqlive --data /tmp/test.db
-```
+$ echo "begin transaction; insert into orders values (id('a'), 568, 'F', 133466.829999999, '1992-01-04', '5-LOW', 'Clerk#000000339', 0, ''); commit;" | sqlive --data /tmp/test.db
+
 The other function that can be used in an insert is called "id", it generates a unique identifier.
 id takes as a parameter a user defined name, which makes it convenient to 
 
@@ -426,6 +426,10 @@ id takes as a parameter a user defined name, which makes it convenient to
 
 You should always prefer streams to windows: they are faster and require less memory.
 So only use windows when you have to use an aggregate function, typically for analytics.
+
+## Bug report
+
+Feel free to file github issues here: [https://github.com/SkipLabs/sqlive](https://github.com/SkipLabs/sqlive)
 
 ## Thank you for reading!
 
