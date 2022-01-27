@@ -302,12 +302,13 @@ manipulating streams):</p>
 
 <p>And check the result in /tmp/negative_bal_connection:</p>
 
-<p>```$ tail -f /tmp/negative<em>bal</em>connection
-0       978|978|978|Customer#000000978|zpvQ6LYE89Inl40Yz,7NJ|24|34-261-243-2624|-50.509999999000001|BUILDING|ely unusual packages nag fluffily above the quickly regular requests. regular accounts run. blithely</p>
-
-<p>1       995|995|995|Customer#000000995|5tCSAsm4qL5OvHdRZsiwSlVTdqPZws3f|13|23-272-700-1002|-341.79000000000002|BUILDING|wake slyly fluffily unusual requests. stealthily regular pinto beans are along the slyly final dugouts. slyly 
+<p><code>$ tail -f /tmp/negative_bal_connection
+0       978|978|978|Customer#000000978|zpvQ6LYE89Inl40Yz,7NJ|24|34-261-243-2624|-50.509999999000001|BUILDING|ely unusual packages nag fluffily above the quickly regular requests. regular accounts run. blithely
+&lt;----- EMPTY LINE
+&lt;----- EMPTY LINE
+1       995|995|995|Customer#000000995|5tCSAsm4qL5OvHdRZsiwSlVTdqPZws3f|13|23-272-700-1002|-341.79000000000002|BUILDING|wake slyly fluffily unusual requests. stealthily regular pinto beans are along the slyly final dugouts. slyly 
 ...
-```</p>
+</code></p>
 
 <p>As expected, we got notified every time a customer with a negative balance connected.
 In general, SQLive will never spawn threads or fork processes behind your back, to make the

@@ -312,8 +312,8 @@ And check the result in /tmp/negative\_bal\_connection:
 
 ```$ tail -f /tmp/negative_bal_connection
 0       978|978|978|Customer#000000978|zpvQ6LYE89Inl40Yz,7NJ|24|34-261-243-2624|-50.509999999000001|BUILDING|ely unusual packages nag fluffily above the quickly regular requests. regular accounts run. blithely
-
-
+<----- EMPTY LINE
+<----- EMPTY LINE
 1       995|995|995|Customer#000000995|5tCSAsm4qL5OvHdRZsiwSlVTdqPZws3f|13|23-272-700-1002|-341.79000000000002|BUILDING|wake slyly fluffily unusual requests. stealthily regular pinto beans are along the slyly final dugouts. slyly 
 ...
 ```
