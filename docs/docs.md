@@ -311,9 +311,6 @@ manipulating streams):
 And check the result in /tmp/negative\_bal\_connection:
 
 ```$ tail -f /tmp/negative_bal_connection
-0       978|978|978|Customer#000000978|zpvQ6LYE89Inl40Yz,7NJ|24|34-261-243-2624|-50.509999999000001|BUILDING|ely unusual packages nag fluffily above the quickly regular requests. regular accounts run. blithely
-<----- EMPTY LINE
-<----- EMPTY LINE
 1       995|995|995|Customer#000000995|5tCSAsm4qL5OvHdRZsiwSlVTdqPZws3f|13|23-272-700-1002|-341.79000000000002|BUILDING|wake slyly fluffily unusual requests. stealthily regular pinto beans are along the slyly final dugouts. slyly 
 ...
 ```
@@ -327,10 +324,11 @@ In this case, we could for example get 10 processes writing on the stream custom
 ```$ for j in {1..10}; do (for i in {1..10000}; do echo "$i, $i"; done | sqlive --data /tmp/test.db --load-csv customer_connect_log)& done; wait
 ```
 
+
 If you replace the '&' with a ';', you will see a dramatic slow down in the ingestion rate of
 the data.
 
-On a laptop with more than 10 cores, the sequential time is 1.632s, while only 0.319s when
+On a laptop with more than 10 cores, the sequential time is 1.0s, while only 0.2s when
 using 10 processes (so roughly 5X faster).
 
 ## Real-time analytics.
