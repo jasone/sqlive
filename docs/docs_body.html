@@ -163,14 +163,14 @@ they can also be used to get notified when changes occurs.</p>
 
 <p>The creation of the virtual view does not trigger notifications. We need to "connect" to that view in order to receive them.</p>
 
-<p><code>$ sqlive --data /tmp/test.db --connect negative_balance --stream /tmp/negative_balance
+<p><code>$ sqlive --data /tmp/test.db --connect negative_balance --updates /tmp/negative_balance
 6043
 </code></p>
 
 <p>With this command we instructed SQLive to send all the changes relative to the virtual view "negative_balance" to the file /tmp/negative_balance.
 In return, SQLive gave us the session number "6043", which will be useful to retrieve the status of that connection.</p>
 
-<p>Let's have a look at the stream:</p>
+<p>Let's have a look at the file:</p>
 
 <p><code>$ tail /tmp/negative_balance
 1       875|Customer#000000875|8pQ4YUYox0d|3|13-146-810-5423|-949.27999999899998|FURNITURE|ar theodolites snooze slyly. furiously express packages cajole blithely around the carefully r
@@ -214,12 +214,12 @@ can safely assume that the database was in a consistent state at that point.</p>
 
 <h2>Diffing</h2>
 
-<p>Streaming changes is fine, but the problem is that the changes are "pushed" to the user.
+<p>Wait for changes is fine, but the problem is that the changes are "pushed" to the user.
 Sometimes, we will need to operate the other way around: the user will want to "pull" changes,
 by asking periodically what has changed since the last time around.</p>
 
 <p>Fortunately, SQLive has the solution: the --diff option.
-Let's create a new connection, this time without the associated --stream option.</p>
+Let's create a new connection, this time without the associated --updates option.</p>
 
 <p><code>$ sqlive --data /tmp/test.db --connect negative_balance
 6058
@@ -256,10 +256,10 @@ Time: 25
 You can repeat that operation as often as you want, at the rate you want, which makes
 it convenient to run use cases that are polling data periodically.</p>
 
-<h2>--stream vs --diff</h2>
+<h2>--updates vs --diff</h2>
 
-<p>So when should you use a --stream? And when should you use a --diff?
-You should use --stream if you need your changes to be live, and when you are confident that
+<p>So when should you use a --updates? And when should you use a --diff?
+You should use --updates if you need your changes to be live, and when you are confident that
 the process that handles the changes will be able to keep up with the write rate of the database.</p>
 
 <h2>Streaming</h2>
@@ -290,7 +290,7 @@ to be able to reuse the view "customer_log":</p>
 
 <p>Finally, we connect to that view:</p>
 
-<p><code>$ sqlive --connect negative_bal_connection --stream /tmp/negative_bal_connection --data /tmp/test.db
+<p><code>$ sqlive --connect negative_bal_connection --updates /tmp/negative_bal_connection --data /tmp/test.db
 7083
 </code></p>
 
@@ -358,7 +358,7 @@ As usual, we first compute the join as a seperate step:</p>
 
 <p>Now let's connect to that view:</p>
 
-<p><code>$ sqlive --connect avg_balance --stream /tmp/avg_balance --data /tmp/test.db
+<p><code>$ sqlive --connect avg_balance --updates /tmp/avg_balance --data /tmp/test.db
 </code></p>
 
 <p>And add some data:</p>
@@ -366,7 +366,7 @@ As usual, we first compute the join as a seperate step:</p>
 <p><code>$ for i in {1..500}; do echo "$i, $i"; done | sqlive --data /tmp/test.db --load-csv customer_connect_window
 </code></p>
 
-<p>And look at the stream of average:</p>
+<p>And look at the file of updates:</p>
 
 <p><code>$ tail /tmp/avg_balance
 ...
