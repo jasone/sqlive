@@ -157,7 +157,7 @@ USING INDEX: customer_orders_c_custkey
 ## Connections
 
 Virtual views can be used to maintain a query up-to-date at all times, as we have just seen, but
-they can also be used to get notified when changes occurs.
+they can also be used to get notified when changes occured.
 
 For example, let's create a query that tracks all the customer with a negative balance.
 
