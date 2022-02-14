@@ -316,7 +316,7 @@ And check the result in /tmp/negative\_bal\_connection:
 ```
 
 As expected, we got notified every time a customer with a negative balance connected.
-In general, SQLive will never spawn threads or fork processes behind your back, to make the
+SQLive will never spawn threads or fork processes behind your back, to make the
 performance more predictable. However, you should feel free to add multiple processes to speedup the ingestion of
 data, including when targetting the same stream (Because SQLive supports multiple writers/readers).
 In this case, we could for example get 10 processes writing on the stream customer\_connect\_log at the same time:
