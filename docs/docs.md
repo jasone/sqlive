@@ -101,7 +101,7 @@ Let's try to run a basic join:
 ```$ echo "select * from customer, orders where c_custkey = o_custkey;" | sqlive --data /tmp/test.db
 ```
 
-Surprisingly, this leads to an error (the error can be ignored with the option --always-allow-join):
+Surprisingly, this leads to an error (the error can be ignored with the option --always-allow-joins):
 
 ```$ echo "select * from customer, orders where c_custkey = o_custkey;" | sqlive --data /tmp/test.db
 select * from customer, orders where c_custkey = o_custkey;
@@ -113,7 +113,7 @@ Joins outside of virtual views are considered bad practice in sqlive.
 You should first create a virtual view joining customer and orders with a query of the form:
 create virtual view customer_orders as select * from customer, orders where c_custkey = o_custkey;
 And then use customer_orders directly.
-PS: You can ignore this error message with --always-allow-join (not recommended).
+PS: You can ignore this error message with --always-allow-joins (not recommended).
 PS2: don't forget you can add indexes to virtual views.
 ```
 
