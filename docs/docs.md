@@ -204,7 +204,7 @@ Let's have a look at the file:
 
 The format is pretty straight forward. It's a key/value format, separated by a tab, where the key is the number of repetitions of a row and the value contains all the columns separated by a '|' (you can switch to csv with the option --csv).
 That number corresponds to the total number of rows with that value. So if a row was already present 23 times, and a transaction adds an additional instance of that row, that number would become 24.
-However, in practice, the number of repetition is always going to be 0 or 1 (0 for removal).
+However, in practice, the number of repetition is often going to be 0 or 1 (0 for removal).
 Also note that for ephemeral streams (which will be introduced later), that number is always one.
 
 You can check the status of every connection at all times with the option "--sessions".
