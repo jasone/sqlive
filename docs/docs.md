@@ -2,7 +2,7 @@
 
 ## Download
 
-A free version of sqlive is available for non-commercial use ([license](https://github.com/SkipLabs/sqlive/blob/main/LICENSE.md)).
+A free version of sqlive is available for non-commercial use ([license](./license.pdf)).
 You can download it here:
 [https://github.com/SkipLabs/sqlive/raw/main/bin/sqlive-linux-x64-0.9.bin](https://github.com/SkipLabs/sqlive/raw/main/bin/sqlive-linux-x64-0.9.bin)
 
@@ -44,7 +44,7 @@ To initialize a database file, use the option --init.
 
 Make sure you do not manipulate this file (copy, rename etc ...) while other processes are accessing the database.
 By default, the maximum capacity of the database is 16GB. Meaning, the database will only be accessible in read-only
-mode once that limit is reached. If you need a larger capacity, you can use the option --capacity at initialization time.
+mode once that limit has been reached. If you need a larger capacity, you can use the option --capacity at initialization time.
 
 ```$ sqlive --init /tmp/test.db --capacity $YOUR_CHOICE_IN_BYTES
 ```
@@ -91,8 +91,26 @@ and UTF-8 strings (TEXT).
 
 By looking at the schema, we can see that the two tables are related through the columns c\_custkey and o\_custkey.
 Each order identifies the customer that passed the order through a unique identifier (as it is often the case in
-relational databases). But what happens when a query needs to both process an order and lookup the data associated to the
-user that passed the order? This requires the use of a join, which you will see, work a bit differently in SQLive.
+relational databases).
+
+
+## Virtual views
+
+At the core of SQLive, are virtual views.
+Let's take an example:
+
+```$ echo "create virtual view positive_bal_customers as select * from customer where c_acctbal > 0.0;" | sqlive --data /tmp/test.db
+```
+
+In this example, we created a virtual view called positive\_bal\_customers that regroups all the customers with a positive balance.
+Virtual views are always maintained up-to-date by the database, so running a query on them is very fast.
+For example:
+
+```$ echo "select c_nationkey, avg(c_acctbal) from positive_bal_customers group by c_nationkey;" | sqlive --data /tmp/test.db
+```
+
+That query would have run at the exact same speed had we created a separate table containing all the customers with a positive balance.
+But what happens when a query involves multiple tables? This requires the use of a join, which you will see, works a bit differently in SQLive.
 
 ## Joins
 
@@ -168,12 +186,12 @@ For example, let's create a query that tracks all the customer with a negative b
 The creation of the virtual view does not trigger notifications. We need to "connect" to that view in order to receive them.
 
 ```$ sqlive --data /tmp/test.db --connect negative_balance --updates /tmp/negative_balance
-6043
+6050
 ```
 
 
 With this command we instructed SQLive to send all the changes relative to the virtual view "negative\_balance" to the file /tmp/negative\_balance.
-In return, SQLive gave us the session number "6043", which will be useful to retrieve the status of that connection.
+In return, SQLive gave us the session number "6050", which will be useful to retrieve the status of that connection.
 
 Let's have a look at the file:
 
@@ -184,7 +202,7 @@ Let's have a look at the file:
 ...
 ```
 
-The format is pretty straight forward. It's a key/value format (separated by a tab) where the key is the number of repetitions of a row.
+The format is pretty straight forward. It's a key/value format, separated by a tab, where the key is the number of repetitions of a row and the value contains all the columns separated by a '|' (you can switch to csv with the option --csv).
 That number corresponds to the total number of rows with that value. So if a row was already present 23 times, and a transaction adds an additional instance of that row, that number would become 24.
 However, in practice, the number of repetition is always going to be 0 or 1 (0 for removal).
 Also note that for ephemeral streams (which will be introduced later), that number is always one.
@@ -192,7 +210,7 @@ Also note that for ephemeral streams (which will be introduced later), that numb
 You can check the status of every connection at all times with the option "--sessions".
 
 ```$ sqlive --sessions --data /tmp/test.db
-6043    /negative_balance/      CONNECTED
+6050    /negative_balance/      CONNECTED
 ```
 
 
@@ -222,7 +240,7 @@ can safely assume that the database was in a consistent state at that point.
 
 ## Diffing
 
-Wait for changes is fine, but the problem is that the changes are "pushed" to the user.
+Waiting for changes is fine, but the problem is that the changes are "pushed" to the user.
 Sometimes, we will need to operate the other way around: the user will want to "pull" changes,
 by asking periodically what has changed since the last time around.
 
@@ -230,13 +248,13 @@ Fortunately, SQLive has the solution: the --diff option.
 Let's create a new connection, this time without the associated --updates option.
 
 ```$ sqlive --data /tmp/test.db --connect negative_balance
-6058
+6065
 ```
 
 And use the session number to get a "diff":
 
-```$ sqlive --diff 6058 --since 0 --data /tmp/test.db
-Time: 22
+```$ sqlive --diff 6065 --since 0 --data /tmp/test.db
+Time: 26
 0       11|Customer#000000011|PkWS 3HlXqwTuzrKg633BEi|23|33-464-151-3439|-272.60000000000002|BUILDING|ckages. requests sleep slyly. quickly even pinto beans promise above the slyly regular pinto beans.
 1       33|Customer#000000033|qFSlMuLucBmx9xnn5ib2csWUweg D|17|27-375-391-1280|-78.560000000000002|AUTOMOBILE|s. slyly regular accounts are furiously. carefully pending requests
 1       37|Customer#000000037|7EV4Pwh,3SboctTWt|8|18-385-235-7162|-917.75|FURNITURE|ilent packages are carefully among the deposits. furiousl
@@ -246,23 +264,23 @@ Time: 22
 Note that we used --diff in conjuction with --since. The --since option takes a timestamp produced by the database.
 The timestamp 0 corresponds to the beginning of times. So asking a diff since time 0 will get you all the data associated
 with a session.
-Now pay attention to the first line that was returned: it says, "Time: 22". This is the new timestamp that you will have to keep for the next time around.
+Now pay attention to the first line that was returned: it says, "Time: 26". This is the new timestamp that you will have to keep for the next time around.
 
-Let's try to make modifications:
+Let's try to modify something:
 
 ```$ echo "delete from customer where c_custkey = 33;" | sqlive --data /tmp/test.db
 ```
 
-And ask for the diff since time 22:
+And ask for the diff since time 26:
 
-```$ sqlive --diff 6058 --since 22 --data /tmp/test.db
-Time: 25
+```$ sqlive --diff 6065 --since 26 --data /tmp/test.db
+Time: 29
 0       33|Customer#000000033|qFSlMuLucBmx9xnn5ib2csWUweg D|17|27-375-391-1280|-78.560000000000002|AUTOMOBILE|s. slyly regular accounts are furiously. carefully pending requests
 ```
 
 The output gives us the next timestamp (25) plus the diff (the removal of the user 33).
 You can repeat that operation as often as you want, at the rate you want, which makes
-it convenient to run use cases that are polling data periodically.
+it convenient to poll changes periodically.
 
 ## --updates vs --diff
 
@@ -282,11 +300,10 @@ We just declared an ephemeral data stream called customer\_connect\_log.
 We can now use that table to log every time a customer connects to the system.
 The difference with a "normal" table, is that the data is ephemeral (it will not persist on disk).
 So what's the point of a stream you may ask? It comes in handy when trying to receive alerts.
-For example, imagine we wanted to receive and alert every time a customer with a negative balance connects
-to our system.
+For example, imagine we wanted to receive and alert every time a customer with a negative balance connected to our system.
 
-Step 1, we join the log with the table of customers, it's better to keep that as a separate step,
-to be able to reuse the view "customer\_log":
+Step 1, we join the log with the table of customers (it's better to keep that as a separate step,
+to be able to reuse the view "customer\_log"):
 
 ```$ echo "create virtual view customer_log as select * from customer_connect_log, customer where c_custkey = clog_custkey;" | sqlive --data /tmp/test.db
 ```
@@ -299,7 +316,7 @@ Step 2, we create a virtual view tracking connection of users with a negative ba
 Finally, we connect to that view:
 
 ```$ sqlive --connect negative_bal_connection --updates /tmp/negative_bal_connection --data /tmp/test.db
-7083
+7090
 ```
 
 Let's see what happens when we add data to the stream (using --load-csv is faster than INSERT statements when
@@ -316,8 +333,7 @@ And check the result in /tmp/negative\_bal\_connection:
 ```
 
 As expected, we got notified every time a customer with a negative balance connected.
-SQLive will never spawn threads or fork processes behind your back, to make the
-performance more predictable. However, you should feel free to add multiple processes to speedup the ingestion of
+To make the performance more predictable, SQLive will never spawn threads or fork processes behind your back. However, you should feel free to use multiple processes to speedup the ingestion of
 data, including when targetting the same stream (Because SQLive supports multiple writers/readers).
 In this case, we could for example get 10 processes writing on the stream customer\_connect\_log at the same time:
 
@@ -410,15 +426,17 @@ If you look at the file /tmp/avg\_balance you can see that all the updates are t
 Sometimes, you will want the database to generate a timestamp for you.
 When that's the case, you can use the "time" function.
 
-$ echo "insert into customer_connect_window values(time(), 34);" | sqlive --data /tmp/test.db
-
+```$ echo "insert into customer_connect_window values(time(), 34);" | sqlive --data /tmp/test.db
+```
 
 Similarly, we can generate primary keys by using the function "id".
 
-$ echo "begin transaction; insert into orders values (id('a'), 568, 'F', 133466.829999999, '1992-01-04', '5-LOW', 'Clerk#000000339', 0, ''); commit;" | sqlive --data /tmp/test.db
+```$ echo "insert into orders values (id(), 568, 'F', 133466.829999999, '1992-01-04', '5-LOW', 'Clerk#000000339', 0, '');" | sqlive --data /tmp/test.db
+```
 
-The other function that can be used in an insert is called "id", it generates a unique identifier.
-id takes as a parameter a user defined name, which makes it convenient to 
+If you need to use an id in multiple places (in a transaction for example), you can name them.
+So for example you could use multiple instances of id('a'), they would all be referring to the same id within the same transaction.
+
 
 ## Streams vs Windows
 

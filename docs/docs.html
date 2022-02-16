@@ -91,7 +91,7 @@ function CopyToClipboard(id) {
 
 <h2>Download</h2>
 
-<p>A free version of sqlive is available for non-commercial use (<a href="https://github.com/SkipLabs/sqlive/blob/main/LICENSE.md">license</a>).
+<p>A free version of sqlive is available for non-commercial use (<a href="./license.pdf">license</a>).
 You can download it here:
 <a href="https://github.com/SkipLabs/sqlive/raw/main/bin/sqlive-linux-x64-0.9.bin">https://github.com/SkipLabs/sqlive/raw/main/bin/sqlive-linux-x64-0.9.bin</a></p>
 
@@ -133,7 +133,7 @@ To initialize a database file, use the option --init.</p>
 
 <p>Make sure you do not manipulate this file (copy, rename etc ...) while other processes are accessing the database.
 By default, the maximum capacity of the database is 16GB. Meaning, the database will only be accessible in read-only
-mode once that limit is reached. If you need a larger capacity, you can use the option --capacity at initialization time.</p>
+mode once that limit has been reached. If you need a larger capacity, you can use the option --capacity at initialization time.</p>
 
 <p><pre><code id="code138" class="hljs">$ sqlive --init /tmp/test.db --capacity $YOUR_CHOICE_IN_BYTES
 </code><button style="float: right;" onclick="CopyToClipboard('code138');return false;">Copy</button><div>  </div></pre></p>
@@ -180,19 +180,36 @@ and UTF-8 strings (TEXT).</p>
 
 <p>By looking at the schema, we can see that the two tables are related through the columns c_custkey and o_custkey.
 Each order identifies the customer that passed the order through a unique identifier (as it is often the case in
-relational databases). But what happens when a query needs to both process an order and lookup the data associated to the
-user that passed the order? This requires the use of a join, which you will see, work a bit differently in SQLive.</p>
+relational databases).</p>
+
+<h2>Virtual views</h2>
+
+<p>At the core of SQLive, are virtual views.
+Let's take an example:</p>
+
+<p><pre><code id="code190" class="hljs">$ echo "create virtual view positive_bal_customers as select * from customer where c_acctbal &gt; 0.0;" | sqlive --data /tmp/test.db
+</code><button style="float: right;" onclick="CopyToClipboard('code190');return false;">Copy</button><div>  </div></pre></p>
+
+<p>In this example, we created a virtual view called positive_bal_customers that regroups all the customers with a positive balance.
+Virtual views are always maintained up-to-date by the database, so running a query on them is very fast.
+For example:</p>
+
+<p><pre><code id="code197" class="hljs">$ echo "select c_nationkey, avg(c_acctbal) from positive_bal_customers group by c_nationkey;" | sqlive --data /tmp/test.db
+</code><button style="float: right;" onclick="CopyToClipboard('code197');return false;">Copy</button><div>  </div></pre></p>
+
+<p>That query would have run at the exact same speed had we created a separate table containing all the customers with a positive balance.
+But what happens when a query involves multiple tables? This requires the use of a join, which you will see, works a bit differently in SQLive.</p>
 
 <h2>Joins</h2>
 
 <p>Let's try to run a basic join:</p>
 
-<p><pre><code id="code190" class="hljs">$ echo "select * from customer, orders where c_custkey = o_custkey;" | sqlive --data /tmp/test.db
-</code><button style="float: right;" onclick="CopyToClipboard('code190');return false;">Copy</button><div>  </div></pre></p>
+<p><pre><code id="code207" class="hljs">$ echo "select * from customer, orders where c_custkey = o_custkey;" | sqlive --data /tmp/test.db
+</code><button style="float: right;" onclick="CopyToClipboard('code207');return false;">Copy</button><div>  </div></pre></p>
 
 <p>Surprisingly, this leads to an error (the error can be ignored with the option --always-allow-joins):</p>
 
-<p><pre><code id="code195" class="hljs">$ echo "select * from customer, orders where c_custkey = o_custkey;" | sqlive --data /tmp/test.db
+<p><pre><code id="code212" class="hljs">$ echo "select * from customer, orders where c_custkey = o_custkey;" | sqlive --data /tmp/test.db
 select * from customer, orders where c_custkey = o_custkey;
 ^
 |
@@ -204,7 +221,7 @@ create virtual view customer_orders as select * from customer, orders where c_cu
 And then use customer_orders directly.
 PS: You can ignore this error message with --always-allow-joins (not recommended).
 PS2: don't forget you can add indexes to virtual views.
-</code><button style="float: right;" onclick="CopyToClipboard('code195');return false;">Copy</button><div>  </div></pre></p>
+</code><button style="float: right;" onclick="CopyToClipboard('code212');return false;">Copy</button><div>  </div></pre></p>
 
 <p>The error message is pretty explicit. Joins outside of a virtual view are considered bad practice. But why is that?
 The reason is that a join is an expensive operation. When you run it outside of a virtual view, you will have
@@ -212,8 +229,8 @@ to repeat that operation every single time the query is run.
 A better approach is to create a virtual view once and for all and have all the subsequent queries
 share the same virtual view. Let's follow the advice given in the error message:</p>
 
-<p><pre><code id="code215" class="hljs">$ echo "create virtual view customer_orders as select * from customer, orders where c_custkey = o_custkey;" | sqlive --data /tmp/test.db
-</code><button style="float: right;" onclick="CopyToClipboard('code215');return false;">Copy</button><div>  </div></pre></p>
+<p><pre><code id="code232" class="hljs">$ echo "create virtual view customer_orders as select * from customer, orders where c_custkey = o_custkey;" | sqlive --data /tmp/test.db
+</code><button style="float: right;" onclick="CopyToClipboard('code232');return false;">Copy</button><div>  </div></pre></p>
 
 <p>This command created the virtual view customer_orders, which can now be used like any other table.
 The difference between a virtual view and a normal view is that the database will maintain that view up-to-date
@@ -221,24 +238,24 @@ at all times. In this case that means that any change in the customer or order t
 This also implies that reading from a virtual view is very fast, because the data is already there.
 Let's find the orders from customer number 889.</p>
 
-<p><pre><code id="code224" class="hljs">$ echo "select * from customer_orders where c_custkey = 889;" | sqlive --data /tmp/test.db
+<p><pre><code id="code241" class="hljs">$ echo "select * from customer_orders where c_custkey = 889;" | sqlive --data /tmp/test.db
 889|Customer#000000889|pLvfd7drswfAcH8oh2seEct|13|23-625-369-6714|3635.3499999989999|FURNITURE|inal ideas. slowly pending frays are. fluff|931|889|F|155527.98000000001|1992-12-07|1-URGENT|Clerk#000000881|0|ss packages haggle furiously express, regular deposits. even, e
-</code><button style="float: right;" onclick="CopyToClipboard('code224');return false;">Copy</button><div>  </div></pre></p>
+</code><button style="float: right;" onclick="CopyToClipboard('code241');return false;">Copy</button><div>  </div></pre></p>
 
 <p>And that works for any query involving customers and orders. Instead of recomputing expensive joins every single time orders and customers are
 involved, you can run those queries directly on the virtual view customer_orders.
 To speed things up, we recommend you add indexes to your virtual views:</p>
 
-<p><pre><code id="code232" class="hljs">$ echo "create index customer_orders_c_custkey ON customer_orders(c_custkey);" | sqlive --data /tmp/test.db
-</code><button style="float: right;" onclick="CopyToClipboard('code232');return false;">Copy</button><div>  </div></pre></p>
+<p><pre><code id="code249" class="hljs">$ echo "create index customer_orders_c_custkey ON customer_orders(c_custkey);" | sqlive --data /tmp/test.db
+</code><button style="float: right;" onclick="CopyToClipboard('code249');return false;">Copy</button><div>  </div></pre></p>
 
 <p>If you are unsure about your queries, you can ask SQLive to list the indexes that were used for a particular query through the option --show-used-indexes.
 This option is particularly useful when trying to optimize your queries.</p>
 
-<p><pre><code id="code238" class="hljs">$ echo "select * from customer_orders where c_custkey = 889;" | sqlive --data /tmp/test.db --show-used-indexes
+<p><pre><code id="code255" class="hljs">$ echo "select * from customer_orders where c_custkey = 889;" | sqlive --data /tmp/test.db --show-used-indexes
 USING INDEX: customer_orders_c_custkey
 ...
-</code><button style="float: right;" onclick="CopyToClipboard('code238');return false;">Copy</button><div>  </div></pre></p>
+</code><button style="float: right;" onclick="CopyToClipboard('code255');return false;">Copy</button><div>  </div></pre></p>
 
 <h2>Connections</h2>
 
@@ -247,54 +264,54 @@ they can also be used to get notified when changes occured.</p>
 
 <p>For example, let's create a query that tracks all the customer with a negative balance.</p>
 
-<p><pre><code id="code250" class="hljs">$ echo "create virtual view negative_balance as select * from customer where c_acctbal &lt; 0.0;" | sqlive --data /tmp/test.db
-</code><button style="float: right;" onclick="CopyToClipboard('code250');return false;">Copy</button><div>  </div></pre></p>
+<p><pre><code id="code267" class="hljs">$ echo "create virtual view negative_balance as select * from customer where c_acctbal &lt; 0.0;" | sqlive --data /tmp/test.db
+</code><button style="float: right;" onclick="CopyToClipboard('code267');return false;">Copy</button><div>  </div></pre></p>
 
 <p>The creation of the virtual view does not trigger notifications. We need to "connect" to that view in order to receive them.</p>
 
-<p><pre><code id="code255" class="hljs">$ sqlive --data /tmp/test.db --connect negative_balance --updates /tmp/negative_balance
-6043
-</code><button style="float: right;" onclick="CopyToClipboard('code255');return false;">Copy</button><div>  </div></pre></p>
+<p><pre><code id="code272" class="hljs">$ sqlive --data /tmp/test.db --connect negative_balance --updates /tmp/negative_balance
+6050
+</code><button style="float: right;" onclick="CopyToClipboard('code272');return false;">Copy</button><div>  </div></pre></p>
 
 <p>With this command we instructed SQLive to send all the changes relative to the virtual view "negative_balance" to the file /tmp/negative_balance.
-In return, SQLive gave us the session number "6043", which will be useful to retrieve the status of that connection.</p>
+In return, SQLive gave us the session number "6050", which will be useful to retrieve the status of that connection.</p>
 
 <p>Let's have a look at the file:</p>
 
-<p><pre><code id="code264" class="hljs">$ tail /tmp/negative_balance
+<p><pre><code id="code281" class="hljs">$ tail /tmp/negative_balance
 1       875|Customer#000000875|8pQ4YUYox0d|3|13-146-810-5423|-949.27999999899998|FURNITURE|ar theodolites snooze slyly. furiously express packages cajole blithely around the carefully r
 1       880|Customer#000000880|ogwHmUUFa1QB69pAoYAAoB0rjbdsVpAQ552e5Q,|8|18-763-990-8618|-77.629999999000006|FURNITURE|regular requests. regular deposits ar
 1       885|Customer#000000885|nNUbC73nPBCKLg0|5|15-874-471-4903|-959.94000000000005|HOUSEHOLD|sits impress regular deposits. slyly silent excuses grow
 ...
-</code><button style="float: right;" onclick="CopyToClipboard('code264');return false;">Copy</button><div>  </div></pre></p>
+</code><button style="float: right;" onclick="CopyToClipboard('code281');return false;">Copy</button><div>  </div></pre></p>
 
-<p>The format is pretty straight forward. It's a key/value format (separated by a tab) where the key is the number of repetitions of a row.
+<p>The format is pretty straight forward. It's a key/value format, separated by a tab, where the key is the number of repetitions of a row and the value contains all the columns separated by a '|' (you can switch to csv with the option --csv).
 That number corresponds to the total number of rows with that value. So if a row was already present 23 times, and a transaction adds an additional instance of that row, that number would become 24.
 However, in practice, the number of repetition is always going to be 0 or 1 (0 for removal).
 Also note that for ephemeral streams (which will be introduced later), that number is always one.</p>
 
 <p>You can check the status of every connection at all times with the option "--sessions".</p>
 
-<p><pre><code id="code278" class="hljs">$ sqlive --sessions --data /tmp/test.db
-6043    /negative_balance/      CONNECTED
-</code><button style="float: right;" onclick="CopyToClipboard('code278');return false;">Copy</button><div>  </div></pre></p>
+<p><pre><code id="code295" class="hljs">$ sqlive --sessions --data /tmp/test.db
+6050    /negative_balance/      CONNECTED
+</code><button style="float: right;" onclick="CopyToClipboard('code295');return false;">Copy</button><div>  </div></pre></p>
 
 <p>We can see that our connection is live. You can decide to disconnect a sessions with the option --disconnect, but note that sessions will automatically disconnect in case of a problem.
 The option --reconnect, restarts the session where it started to fail and sends all the data that was missed since the disconnection.</p>
 
 <p>Let's see what happens when the data changes.</p>
 
-<p><pre><code id="code287" class="hljs">$ echo "delete from customer where c_custkey = 11;" | sqlive --data /tmp/test.db
-</code><button style="float: right;" onclick="CopyToClipboard('code287');return false;">Copy</button><div>  </div></pre></p>
+<p><pre><code id="code304" class="hljs">$ echo "delete from customer where c_custkey = 11;" | sqlive --data /tmp/test.db
+</code><button style="float: right;" onclick="CopyToClipboard('code304');return false;">Copy</button><div>  </div></pre></p>
 
 <p>And see the effect in /tmp/negative_balance:</p>
 
-<p><pre><code id="code292" class="hljs">$ tail  /tmp/negative_balance
+<p><pre><code id="code309" class="hljs">$ tail  /tmp/negative_balance
 ...
 &lt;-------- EMPTY LINE
 &lt;-------- EMPTY LINE
  0     11|Customer#000000011|PkWS 3HlXqwTuzrKg633BEi|23|33-464-151-3439|-272.60000000000002|BUILDING|ckages. requests sleep slyly. quickly even pinto beans promise above the slyly regular pinto beans.
-</code><button style="float: right;" onclick="CopyToClipboard('code292');return false;">Copy</button><div>  </div></pre></p>
+</code><button style="float: right;" onclick="CopyToClipboard('code309');return false;">Copy</button><div>  </div></pre></p>
 
 <p>A new line appeared notifying us that the customer 11 has been removed.
 If you paid attention, you can see that two empty lines where introduced before the notification.
@@ -303,47 +320,47 @@ can safely assume that the database was in a consistent state at that point.</p>
 
 <h2>Diffing</h2>
 
-<p>Wait for changes is fine, but the problem is that the changes are "pushed" to the user.
+<p>Waiting for changes is fine, but the problem is that the changes are "pushed" to the user.
 Sometimes, we will need to operate the other way around: the user will want to "pull" changes,
 by asking periodically what has changed since the last time around.</p>
 
 <p>Fortunately, SQLive has the solution: the --diff option.
 Let's create a new connection, this time without the associated --updates option.</p>
 
-<p><pre><code id="code313" class="hljs">$ sqlive --data /tmp/test.db --connect negative_balance
-6058
-</code><button style="float: right;" onclick="CopyToClipboard('code313');return false;">Copy</button><div>  </div></pre></p>
+<p><pre><code id="code330" class="hljs">$ sqlive --data /tmp/test.db --connect negative_balance
+6065
+</code><button style="float: right;" onclick="CopyToClipboard('code330');return false;">Copy</button><div>  </div></pre></p>
 
 <p>And use the session number to get a "diff":</p>
 
-<p><pre><code id="code319" class="hljs">$ sqlive --diff 6058 --since 0 --data /tmp/test.db
-Time: 22
+<p><pre><code id="code336" class="hljs">$ sqlive --diff 6065 --since 0 --data /tmp/test.db
+Time: 26
 0       11|Customer#000000011|PkWS 3HlXqwTuzrKg633BEi|23|33-464-151-3439|-272.60000000000002|BUILDING|ckages. requests sleep slyly. quickly even pinto beans promise above the slyly regular pinto beans.
 1       33|Customer#000000033|qFSlMuLucBmx9xnn5ib2csWUweg D|17|27-375-391-1280|-78.560000000000002|AUTOMOBILE|s. slyly regular accounts are furiously. carefully pending requests
 1       37|Customer#000000037|7EV4Pwh,3SboctTWt|8|18-385-235-7162|-917.75|FURNITURE|ilent packages are carefully among the deposits. furiousl
 ...
-</code><button style="float: right;" onclick="CopyToClipboard('code319');return false;">Copy</button><div>  </div></pre></p>
+</code><button style="float: right;" onclick="CopyToClipboard('code336');return false;">Copy</button><div>  </div></pre></p>
 
 <p>Note that we used --diff in conjuction with --since. The --since option takes a timestamp produced by the database.
 The timestamp 0 corresponds to the beginning of times. So asking a diff since time 0 will get you all the data associated
 with a session.
-Now pay attention to the first line that was returned: it says, "Time: 22". This is the new timestamp that you will have to keep for the next time around.</p>
+Now pay attention to the first line that was returned: it says, "Time: 26". This is the new timestamp that you will have to keep for the next time around.</p>
 
-<p>Let's try to make modifications:</p>
+<p>Let's try to modify something:</p>
 
-<p><pre><code id="code334" class="hljs">$ echo "delete from customer where c_custkey = 33;" | sqlive --data /tmp/test.db
-</code><button style="float: right;" onclick="CopyToClipboard('code334');return false;">Copy</button><div>  </div></pre></p>
+<p><pre><code id="code351" class="hljs">$ echo "delete from customer where c_custkey = 33;" | sqlive --data /tmp/test.db
+</code><button style="float: right;" onclick="CopyToClipboard('code351');return false;">Copy</button><div>  </div></pre></p>
 
-<p>And ask for the diff since time 22:</p>
+<p>And ask for the diff since time 26:</p>
 
-<p><pre><code id="code339" class="hljs">$ sqlive --diff 6058 --since 22 --data /tmp/test.db
-Time: 25
+<p><pre><code id="code356" class="hljs">$ sqlive --diff 6065 --since 26 --data /tmp/test.db
+Time: 29
 0       33|Customer#000000033|qFSlMuLucBmx9xnn5ib2csWUweg D|17|27-375-391-1280|-78.560000000000002|AUTOMOBILE|s. slyly regular accounts are furiously. carefully pending requests
-</code><button style="float: right;" onclick="CopyToClipboard('code339');return false;">Copy</button><div>  </div></pre></p>
+</code><button style="float: right;" onclick="CopyToClipboard('code356');return false;">Copy</button><div>  </div></pre></p>
 
 <p>The output gives us the next timestamp (25) plus the diff (the removal of the user 33).
 You can repeat that operation as often as you want, at the rate you want, which makes
-it convenient to run use cases that are polling data periodically.</p>
+it convenient to poll changes periodically.</p>
 
 <h2>--updates vs --diff</h2>
 
@@ -356,54 +373,52 @@ the process that handles the changes will be able to keep up with the write rate
 <p>SQLive also supports ephemeral tables called streams. They work exactly like a normal
 sql table, except that they do not persist on disk.</p>
 
-<p><pre><code id="code359" class="hljs">$ echo "create stream customer_connect_log (clog_custkey INTEGER, clog_time INTEGER);" | sqlive --data /tmp/test.db
-</code><button style="float: right;" onclick="CopyToClipboard('code359');return false;">Copy</button><div>  </div></pre></p>
+<p><pre><code id="code376" class="hljs">$ echo "create stream customer_connect_log (clog_custkey INTEGER, clog_time INTEGER);" | sqlive --data /tmp/test.db
+</code><button style="float: right;" onclick="CopyToClipboard('code376');return false;">Copy</button><div>  </div></pre></p>
 
 <p>We just declared an ephemeral data stream called customer_connect_log.
 We can now use that table to log every time a customer connects to the system.
 The difference with a "normal" table, is that the data is ephemeral (it will not persist on disk).
 So what's the point of a stream you may ask? It comes in handy when trying to receive alerts.
-For example, imagine we wanted to receive and alert every time a customer with a negative balance connects
-to our system.</p>
+For example, imagine we wanted to receive and alert every time a customer with a negative balance connected to our system.</p>
 
-<p>Step 1, we join the log with the table of customers, it's better to keep that as a separate step,
-to be able to reuse the view "customer_log":</p>
+<p>Step 1, we join the log with the table of customers (it's better to keep that as a separate step,
+to be able to reuse the view "customer_log"):</p>
 
-<p><pre><code id="code372" class="hljs">$ echo "create virtual view customer_log as select * from customer_connect_log, customer where c_custkey = clog_custkey;" | sqlive --data /tmp/test.db
-</code><button style="float: right;" onclick="CopyToClipboard('code372');return false;">Copy</button><div>  </div></pre></p>
+<p><pre><code id="code388" class="hljs">$ echo "create virtual view customer_log as select * from customer_connect_log, customer where c_custkey = clog_custkey;" | sqlive --data /tmp/test.db
+</code><button style="float: right;" onclick="CopyToClipboard('code388');return false;">Copy</button><div>  </div></pre></p>
 
 <p>Step 2, we create a virtual view tracking connection of users with a negative balance:</p>
 
-<p><pre><code id="code377" class="hljs">$ echo "create virtual view negative_bal_connection as select * from customer_log where c_acctbal &lt; 0.0;" | sqlive --data /tmp/test.db
-</code><button style="float: right;" onclick="CopyToClipboard('code377');return false;">Copy</button><div>  </div></pre></p>
+<p><pre><code id="code393" class="hljs">$ echo "create virtual view negative_bal_connection as select * from customer_log where c_acctbal &lt; 0.0;" | sqlive --data /tmp/test.db
+</code><button style="float: right;" onclick="CopyToClipboard('code393');return false;">Copy</button><div>  </div></pre></p>
 
 <p>Finally, we connect to that view:</p>
 
-<p><pre><code id="code382" class="hljs">$ sqlive --connect negative_bal_connection --updates /tmp/negative_bal_connection --data /tmp/test.db
-7083
-</code><button style="float: right;" onclick="CopyToClipboard('code382');return false;">Copy</button><div>  </div></pre></p>
+<p><pre><code id="code398" class="hljs">$ sqlive --connect negative_bal_connection --updates /tmp/negative_bal_connection --data /tmp/test.db
+7090
+</code><button style="float: right;" onclick="CopyToClipboard('code398');return false;">Copy</button><div>  </div></pre></p>
 
 <p>Let's see what happens when we add data to the stream (using --load-csv is faster than INSERT statements when
 manipulating streams):</p>
 
-<p><pre><code id="code389" class="hljs">$ for i in {1..10000}; do echo "$i, $i"; done | sqlive --data /tmp/test.db --load-csv customer_connect_log
-</code><button style="float: right;" onclick="CopyToClipboard('code389');return false;">Copy</button><div>  </div></pre></p>
+<p><pre><code id="code405" class="hljs">$ for i in {1..10000}; do echo "$i, $i"; done | sqlive --data /tmp/test.db --load-csv customer_connect_log
+</code><button style="float: right;" onclick="CopyToClipboard('code405');return false;">Copy</button><div>  </div></pre></p>
 
 <p>And check the result in /tmp/negative_bal_connection:</p>
 
-<p><pre><code id="code394" class="hljs">$ tail -f /tmp/negative_bal_connection
+<p><pre><code id="code410" class="hljs">$ tail -f /tmp/negative_bal_connection
 1       995|995|995|Customer#000000995|5tCSAsm4qL5OvHdRZsiwSlVTdqPZws3f|13|23-272-700-1002|-341.79000000000002|BUILDING|wake slyly fluffily unusual requests. stealthily regular pinto beans are along the slyly final dugouts. slyly 
 ...
-</code><button style="float: right;" onclick="CopyToClipboard('code394');return false;">Copy</button><div>  </div></pre></p>
+</code><button style="float: right;" onclick="CopyToClipboard('code410');return false;">Copy</button><div>  </div></pre></p>
 
 <p>As expected, we got notified every time a customer with a negative balance connected.
-In general, SQLive will never spawn threads or fork processes behind your back, to make the
-performance more predictable. However, you should feel free to add multiple processes to speedup the ingestion of
+To make the performance more predictable, SQLive will never spawn threads or fork processes behind your back. However, you should feel free to use multiple processes to speedup the ingestion of
 data, including when targetting the same stream (Because SQLive supports multiple writers/readers).
 In this case, we could for example get 10 processes writing on the stream customer_connect_log at the same time:</p>
 
-<p><pre><code id="code405" class="hljs">$ for j in {1..10}; do (for i in {1..10000}; do echo "$i, $i"; done | sqlive --data /tmp/test.db --load-csv customer_connect_log)&amp; done; wait
-</code><button style="float: right;" onclick="CopyToClipboard('code405');return false;">Copy</button><div>  </div></pre></p>
+<p><pre><code id="code420" class="hljs">$ for j in {1..10}; do (for i in {1..10000}; do echo "$i, $i"; done | sqlive --data /tmp/test.db --load-csv customer_connect_log)&amp; done; wait
+</code><button style="float: right;" onclick="CopyToClipboard('code420');return false;">Copy</button><div>  </div></pre></p>
 
 <p>If you replace the '&amp;' with a ';', you will see a dramatic slow down in the ingestion rate of
 the data.</p>
@@ -415,20 +430,20 @@ using 10 processes (so roughly 5X faster).</p>
 
 <p>As mentioned earlier, streams are ephemeral. So what happens when using aggregate functions on them?</p>
 
-<p><pre><code id="code418" class="hljs">$ echo "select count(*) from customer_connect_log;" | sqlive --data /tmp/test.db
+<p><pre><code id="code433" class="hljs">$ echo "select count(*) from customer_connect_log;" | sqlive --data /tmp/test.db
 ^
 |
  ----- ERROR
 Error: line 1, characters 0-0:
 Cannot use a stream for aggregates, use a window instead
-</code><button style="float: right;" onclick="CopyToClipboard('code418');return false;">Copy</button><div>  </div></pre></p>
+</code><button style="float: right;" onclick="CopyToClipboard('code433');return false;">Copy</button><div>  </div></pre></p>
 
 <p>We get an error. The error invites us to use a "window". A window is exactly like a stream, except that
 it will persist data for a certain time. It's the kind of table you will need to compute real-time analytics.
 For example, let's say we want to keep the data received in the last hour.</p>
 
-<p><pre><code id="code430" class="hljs">$ echo "create window 3600 customer_connect_window (cw_time INTEGER, cw_custkey INTEGER);" | sqlive --data /tmp/test.db
-</code><button style="float: right;" onclick="CopyToClipboard('code430');return false;">Copy</button><div>  </div></pre></p>
+<p><pre><code id="code445" class="hljs">$ echo "create window 3600 customer_connect_window (cw_time INTEGER, cw_custkey INTEGER);" | sqlive --data /tmp/test.db
+</code><button style="float: right;" onclick="CopyToClipboard('code445');return false;">Copy</button><div>  </div></pre></p>
 
 <p>The first column of a window is always expected to be a timestamp (an integer corresponding to a number of seconds since a fixed time in the past).
 The number 3600 corresponds to the number of seconds we want to persist the data.</p>
@@ -437,33 +452,33 @@ The number 3600 corresponds to the number of seconds we want to persist the data
 account balance of the customers who connected in the last hour.
 As usual, we first compute the join as a seperate step:</p>
 
-<p><pre><code id="code440" class="hljs">$ echo "create virtual view customer_window as select * from customer_connect_window, customer where cw_custkey = c_custkey;" | sqlive --data /tmp/test.db
-</code><button style="float: right;" onclick="CopyToClipboard('code440');return false;">Copy</button><div>  </div></pre></p>
+<p><pre><code id="code455" class="hljs">$ echo "create virtual view customer_window as select * from customer_connect_window, customer where cw_custkey = c_custkey;" | sqlive --data /tmp/test.db
+</code><button style="float: right;" onclick="CopyToClipboard('code455');return false;">Copy</button><div>  </div></pre></p>
 
 <p>And then produce the average based on that virtual view:</p>
 
-<p><pre><code id="code445" class="hljs">$ echo "create virtual view avg_balance as select avg(c_acctbal) from customer_window;" | sqlive --data /tmp/test.db
-</code><button style="float: right;" onclick="CopyToClipboard('code445');return false;">Copy</button><div>  </div></pre></p>
+<p><pre><code id="code460" class="hljs">$ echo "create virtual view avg_balance as select avg(c_acctbal) from customer_window;" | sqlive --data /tmp/test.db
+</code><button style="float: right;" onclick="CopyToClipboard('code460');return false;">Copy</button><div>  </div></pre></p>
 
 <p>Now let's connect to that view:</p>
 
-<p><pre><code id="code450" class="hljs">$ sqlive --connect avg_balance --updates /tmp/avg_balance --data /tmp/test.db
-</code><button style="float: right;" onclick="CopyToClipboard('code450');return false;">Copy</button><div>  </div></pre></p>
+<p><pre><code id="code465" class="hljs">$ sqlive --connect avg_balance --updates /tmp/avg_balance --data /tmp/test.db
+</code><button style="float: right;" onclick="CopyToClipboard('code465');return false;">Copy</button><div>  </div></pre></p>
 
 <p>And add some data:</p>
 
-<p><pre><code id="code455" class="hljs">$ for i in {1..500}; do echo "$i, $i"; done | sqlive --data /tmp/test.db --load-csv customer_connect_window
-</code><button style="float: right;" onclick="CopyToClipboard('code455');return false;">Copy</button><div>  </div></pre></p>
+<p><pre><code id="code470" class="hljs">$ for i in {1..500}; do echo "$i, $i"; done | sqlive --data /tmp/test.db --load-csv customer_connect_window
+</code><button style="float: right;" onclick="CopyToClipboard('code470');return false;">Copy</button><div>  </div></pre></p>
 
 <p>And look at the file of updates:</p>
 
-<p><pre><code id="code460" class="hljs">$ tail /tmp/avg_balance
+<p><pre><code id="code475" class="hljs">$ tail /tmp/avg_balance
 ...
 1       711.55999999899996
 &lt;--- NEWLINE
 &lt;--- NEWLINE
 1       4531.63158634502
-</code><button style="float: right;" onclick="CopyToClipboard('code460');return false;">Copy</button><div>  </div></pre></p>
+</code><button style="float: right;" onclick="CopyToClipboard('code475');return false;">Copy</button><div>  </div></pre></p>
 
 <p>So you may wonder, how often is /tmp/avg_balance updated? On every single change?
 Windows are different from streams and normal sql tables in that regard.
@@ -476,28 +491,30 @@ which will make windows work like streams (or normal sql tables) in that regard.
 
 <p>Let's try it:</p>
 
-<p><pre><code id="code479" class="hljs">$ for i in {500..1000}; do echo "$i, $i"; done | sqlive --data /tmp/test.db --load-csv customer_connect_window --force-window-update
-</code><button style="float: right;" onclick="CopyToClipboard('code479');return false;">Copy</button><div>  </div></pre></p>
+<p><pre><code id="code494" class="hljs">$ for i in {500..1000}; do echo "$i, $i"; done | sqlive --data /tmp/test.db --load-csv customer_connect_window --force-window-update
+</code><button style="float: right;" onclick="CopyToClipboard('code494');return false;">Copy</button><div>  </div></pre></p>
 
 <p>If you look at the file /tmp/avg_balance you can see that all the updates are there.</p>
 
-<p><pre><code id="code484" class="hljs">$ wc /tmp/avg_balance
+<p><pre><code id="code499" class="hljs">$ wc /tmp/avg_balance
  1509  1005 11507 /tmp/avg_balance
-</code><button style="float: right;" onclick="CopyToClipboard('code484');return false;">Copy</button><div>  </div></pre></p>
+</code><button style="float: right;" onclick="CopyToClipboard('code499');return false;">Copy</button><div>  </div></pre></p>
 
 <h2>time and id</h2>
 
 <p>Sometimes, you will want the database to generate a timestamp for you.
 When that's the case, you can use the "time" function.</p>
 
-<p>$ echo "insert into customer<em>connect</em>window values(time(), 34);" | sqlive --data /tmp/test.db</p>
+<p><pre><code id="code508" class="hljs">$ echo "insert into customer_connect_window values(time(), 34);" | sqlive --data /tmp/test.db
+</code><button style="float: right;" onclick="CopyToClipboard('code508');return false;">Copy</button><div>  </div></pre></p>
 
 <p>Similarly, we can generate primary keys by using the function "id".</p>
 
-<p>$ echo "begin transaction; insert into orders values (id('a'), 568, 'F', 133466.829999999, '1992-01-04', '5-LOW', 'Clerk#000000339', 0, ''); commit;" | sqlive --data /tmp/test.db</p>
+<p><pre><code id="code513" class="hljs">$ echo "insert into orders values (id(), 568, 'F', 133466.829999999, '1992-01-04', '5-LOW', 'Clerk#000000339', 0, '');" | sqlive --data /tmp/test.db
+</code><button style="float: right;" onclick="CopyToClipboard('code513');return false;">Copy</button><div>  </div></pre></p>
 
-<p>The other function that can be used in an insert is called "id", it generates a unique identifier.
-id takes as a parameter a user defined name, which makes it convenient to </p>
+<p>If you need to use an id in multiple places (in a transaction for example), you can name them.
+So for example you could use multiple instances of id('a'), they would all be referring to the same id within the same transaction.</p>
 
 <h2>Streams vs Windows</h2>
 
@@ -518,6 +535,21 @@ So only use windows when you have to use an aggregate function, typically for an
       </div>
       </div>
 <footer class="nav-footer" id="footer">
+        <section class="sitemap">
+          <div>
+            <h5>Legal</h5>
+            <a href="./privacy.pdf">Website privacy</a>
+            <a href="./terms.pdf">Terms of use</a>
+          </div>
+          <div>
+            <h5>Documentation</h5>
+            <a href="./docs.html">Docs</a>
+          </div>
+          <div>
+            <h5>About</h5>
+            <a href="./about.html">Contact us</a>
+        </div>
+        </section>
   <section class="copyright">
     Copyright &#169; 2022 SkipLabs Inc.
   </section>
