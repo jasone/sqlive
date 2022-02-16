@@ -249,10 +249,9 @@ $ tail  /tmp/negative_balance
  0     11|Customer#000000011|PkWS 3HlXqwTuzrKg633BEi|23|33-464-151-3439|-272.60000000000002|BUILDING|ckages. requests sleep slyly. quickly even pinto beans promise above the slyly regular pinto beans.
 ```
 
-
 A new line appeared notifying us that the customer 11 has been removed.
-If you paid attention, you can see that two empty lines where introduced before the notification.
-Those lines are there to notify that the database finished a transaction (and is starting a new one). If you are ingesting the changes, you
+You may have noticed that two empty lines where introduced before the notification:
+those lines tell us that the database finished a transaction and is starting a new one. If you are ingesting the changes, you
 can safely assume that the database was in a consistent state at that point.
 
 ## Diffing
@@ -281,17 +280,18 @@ Time: 26
 ```
 
 Note that we used `--diff` in conjuction with `--since`. The `--since` option takes a timestamp produced by the database.
-The timestamp 0 corresponds to the beginning of times. So asking a diff since time 0 will get you all the data associated
+The timestamp 0 corresponds to the beginning of times. So asking for a diff since time 0 will get you all the data associated
 with a session.
-Now pay attention to the first line that was returned: it says, "Time: 26". This is the new timestamp that you will have to keep for the next time around.
+The first line above contains a timestamp (`Time: 26`) that will be a useful diff
+point for us shortly.
 
-Let's try to modify something:
+Let's now make some modifications:
 
 ```
 $ echo "delete from customer where c_custkey = 33;" | sqlive --data /tmp/test.db
 ```
 
-And ask for the diff since time 26:
+And ask for the diff since the timestamp from above (26):
 
 ```
 $ sqlive --diff 6065 --since 26 --data /tmp/test.db
@@ -325,7 +325,7 @@ So what's the point of a stream you may ask? It comes in handy when trying to re
 For example, imagine we wanted to receive and alert every time a customer with a negative balance connected to our system.
 
 Step 1, we join the log with the table of customers (it's better to keep that as a separate step,
-to be able to reuse the view "customer\_log"):
+to be able to reuse the view "customer_log"):
 
 ```
 $ echo "create virtual view customer_log as select * from customer_connect_log, customer where c_custkey = clog_custkey;" | sqlive --data /tmp/test.db
@@ -351,7 +351,7 @@ manipulating streams):
 $ for i in {1..10000}; do echo "$i, $i"; done | sqlive --data /tmp/test.db --load-csv customer_connect_log
 ```
 
-And check the result in /tmp/negative\_bal\_connection:
+And check the result in /tmp/negative_bal_connection:
 
 ```
 $ tail -f /tmp/negative_bal_connection
