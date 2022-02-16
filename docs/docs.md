@@ -44,9 +44,9 @@ To initialize a database file, use the option `--init`.
 $ sqlive --init /tmp/test.db
 ```
 
-Make sure you do not manipulate this file (copy, rename etc ...) while other processes are accessing the database.
-By default, the maximum capacity of the database is 16GB. Meaning, the database will only be accessible in read-only
-mode once that limit has been reached. If you need a larger capacity, you can use the option `--capacity` at initialization time.
+Make sure you do not manipulate this file (copy, rename, etc.) while other processes are accessing the database.
+By default the maximum capacity of the database is 16GB: once that capacity is reach the database will
+become read-only. If you need a larger capacity, you can use the option `--capacity` at initialization time.
 
 ```
 $ sqlive --init /tmp/test.db --capacity $YOUR_CHOICE_IN_BYTES
