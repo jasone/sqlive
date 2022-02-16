@@ -38,7 +38,7 @@ $ sudo ln -s /usr/local/bin/sqlive-linux-x64-0.9.bin /usr/local/bin/sqlive
 ## Initialization
 
 SQLive stores all of its data in a file specified by the user.
-To initialize a database file, use the option --init.
+To initialize a database file, use the option `--init`.
 
 ```
 $ sqlive --init /tmp/test.db
@@ -46,7 +46,7 @@ $ sqlive --init /tmp/test.db
 
 Make sure you do not manipulate this file (copy, rename etc ...) while other processes are accessing the database.
 By default, the maximum capacity of the database is 16GB. Meaning, the database will only be accessible in read-only
-mode once that limit has been reached. If you need a larger capacity, you can use the option --capacity at initialization time.
+mode once that limit has been reached. If you need a larger capacity, you can use the option `--capacity` at initialization time.
 
 ```
 $ sqlive --init /tmp/test.db --capacity $YOUR_CHOICE_IN_BYTES
@@ -125,7 +125,7 @@ Let's try to run a basic join:
 $ echo "select * from customer, orders where c_custkey = o_custkey;" | sqlive --data /tmp/test.db
 ```
 
-Surprisingly, this leads to an error (the error can be ignored with the option --always-allow-joins):
+Surprisingly, this leads to an error (the error can be ignored with the option `--always-allow-joins`):
 
 ```
 $ echo "select * from customer, orders where c_custkey = o_custkey;" | sqlive --data /tmp/test.db
@@ -173,7 +173,7 @@ $ echo "create index customer_orders_c_custkey ON customer_orders(c_custkey);" |
 ```
 
 
-If you are unsure about your queries, you can ask SQLive to list the indexes that were used for a particular query through the option --show-used-indexes.
+If you are unsure about your queries, you can ask SQLive to list the indexes that were used for a particular query through the option `--show-used-indexes`.
 This option is particularly useful when trying to optimize your queries.
 
 ```
@@ -221,7 +221,7 @@ That number corresponds to the total number of rows with that value. So if a row
 However, in practice, the number of repetition is often going to be 0 or 1 (0 for removal).
 Also note that for ephemeral streams (which will be introduced later), that number is always 1.
 
-You can check the status of every connection at all times with the option "--sessions":
+You can check the status of every connection at all times with the option `--sessions`:
 
 ```
 $ sqlive --sessions --data /tmp/test.db
@@ -229,8 +229,8 @@ $ sqlive --sessions --data /tmp/test.db
 ```
 
 
-We can see that our connection is live. You can decide to disconnect a sessions with the option --disconnect, but note that sessions will automatically disconnect in case of a problem.
-The option --reconnect, restarts the session where it started to fail and sends all the data that was missed since the disconnection.
+We can see that our connection is live. You can decide to disconnect a sessions with the option `--disconnect`, but note that sessions will automatically disconnect in case of a problem.
+The option `--reconnect`, restarts the session where it started to fail and sends all the data that was missed since the disconnection.
 
 Let's see what happens when the data changes.
 
@@ -261,8 +261,8 @@ Waiting for changes is fine, but the problem is that the changes are "pushed" to
 Sometimes, we will need to operate the other way around: the user will want to "pull" changes,
 by asking periodically what has changed since the last time around.
 
-Fortunately, SQLive has the solution: the --diff option.
-Let's create a new connection, this time without the associated --updates option.
+Fortunately, SQLive has the solution: the `--diff` option.
+Let's create a new connection, this time without the associated `--updates` option.
 
 ```
 $ sqlive --data /tmp/test.db --connect negative_balance
@@ -280,7 +280,7 @@ Time: 26
 ...
 ```
 
-Note that we used --diff in conjuction with --since. The --since option takes a timestamp produced by the database.
+Note that we used `--diff` in conjuction with `--since`. The `--since` option takes a timestamp produced by the database.
 The timestamp 0 corresponds to the beginning of times. So asking a diff since time 0 will get you all the data associated
 with a session.
 Now pay attention to the first line that was returned: it says, "Time: 26". This is the new timestamp that you will have to keep for the next time around.
@@ -305,8 +305,8 @@ it convenient to pull changes periodically.
 
 ## --updates vs --diff
 
-So when should you use a --updates? And when should you use a --diff?
-You should use --updates if you need your changes to be live, and when you are confident that
+So when should you use `--updates` and when should you use a `--diff`?
+You should use `--updates` if you need your changes to be live, and when you are confident that
 the process that handles the changes will be able to keep up with the write rate of the database.
 
 ## Streaming
@@ -344,7 +344,7 @@ $ sqlive --connect negative_bal_connection --updates /tmp/negative_bal_connectio
 7090
 ```
 
-Let's see what happens when we add data to the stream (using --load-csv is faster than INSERT statements when
+Let's see what happens when we add data to the stream (using `--load-csv` is faster than `INSERT` statements when
 manipulating streams):
 
 ```
@@ -400,7 +400,7 @@ The number 3600 corresponds to the number of seconds we want to persist the data
 
 Now that we successfully created a window. Let's run a query on it. Let's compute the average
 account balance of the customers who connected in the last hour.
-As usual, we first compute the join as a seperate step:
+As usual, we first compute the join as a separate step:
 
 ```
 $ echo "create virtual view customer_window as select * from customer_connect_window, customer where cw_custkey = c_custkey;" | sqlive --data /tmp/test.db
@@ -436,12 +436,12 @@ $ tail /tmp/avg_balance
 ```
 
 So you may wonder, how often is /tmp/avg_balance updated? On every single change?
-Windows are different from streams and normal sql tables in that regard.
+Windows are different from streams and normal SQL tables in that regard.
 When using a window, the database can decide to regroup changes together.
 So in this case, there might have been intermediate values between 711.5 and 4531.6 that were
 never sent to the stream of changes.
 The reason is that most of the time, we don't care how many elements are exactly present in given windows. So regrouping insertions makes sense (and speeds things up).
-If you are unhappy with that behavior, and you want notifications for every single window insert to be triggered, you can pass the option --force-window-update,
+If you are unhappy with that behavior, and you want notifications for every single window insert to be triggered, you can pass the option `--force-window-update`,
 which will make windows work like streams (or normal sql tables) in that regard.
 
 Let's try it:
@@ -457,17 +457,19 @@ $ wc /tmp/avg_balance
  1509  1005 11507 /tmp/avg_balance
 ```
 
-## time and id
+## Time and ID
 
 Sometimes, you will want the database to generate a timestamp for you.
 When that's the case, you can use the "time" function.
 
-```$ echo "insert into customer_connect_window values(time(), 34);" | sqlive --data /tmp/test.db
+```
+$ echo "insert into customer_connect_window values(time(), 34);" | sqlive --data /tmp/test.db
 ```
 
 Similarly, we can generate primary keys by using the function "id".
 
-```$ echo "insert into orders values (id(), 568, 'F', 133466.829999999, '1992-01-04', '5-LOW', 'Clerk#000000339', 0, '');" | sqlive --data /tmp/test.db
+```
+$ echo "insert into orders values (id(), 568, 'F', 133466.829999999, '1992-01-04', '5-LOW', 'Clerk#000000339', 0, '');" | sqlive --data /tmp/test.db
 ```
 
 If you need to use an id in multiple places (in a transaction for example), you can name them.
