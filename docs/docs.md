@@ -19,7 +19,7 @@ but if you need to run sqlive on a different platform, please contact us at [con
 
 ## SQL
 
-This documentations is not a good place to learn SQL. If you need to get started you can find a good introduction here: [https://www.w3schools.com/sql/](https://www.w3schools.com/sql/).
+This documentation is not a good place to learn SQL. If you need to get started you can find a good introduction here: [https://www.w3schools.com/sql/](https://www.w3schools.com/sql/).
 The subset of SQL implemented by SQLive is the same as SQLite, you can find it here: [https://www.sqlite.org/lang.html](https://www.sqlite.org/lang.html). The API to access SQLive is command-line based for now. If you need a driver please contact us at: [contact@skiplabs.io](mailto:contact@skiplabs.io).
 
 ## Install
@@ -156,7 +156,7 @@ This command created the virtual view customer\_orders, which can now be used li
 The difference between a virtual view and a normal view is that the database will maintain that view up-to-date
 at all times. In this case that means that any change in the customer or order table will be reflected in the virtual view customer\_orders.
 This also implies that reading from a virtual view is very fast, because the data is already there.
-Let's find the orders from customer number 889.
+Let's find the orders from customer number 889:
 
 ```
 $ echo "select * from customer_orders where c_custkey = 889;" | sqlive --data /tmp/test.db
@@ -185,17 +185,17 @@ USING INDEX: customer_orders_c_custkey
 
 ## Connections
 
-Virtual views can be used to maintain a query up-to-date at all times, as we have just seen, but
-they can also be used to get notified when changes occured.
+Virtual views can be used to maintain an up-to-date query at all times, as we have just seen, but
+they can also be used to be notified when changes occur.
 
-For example, let's create a query that tracks all the customer with a negative balance.
+For example, let's create a query that tracks all the customer with a negative balance:
 
 ```
 $ echo "create virtual view negative_balance as select * from customer where c_acctbal < 0.0;" | sqlive --data /tmp/test.db
 ```
 
 
-The creation of the virtual view does not trigger notifications. We need to "connect" to that view in order to receive them.
+The creation of the virtual view does not trigger notifications. We need to "connect" to that view in order to receive them:
 
 ```
 $ sqlive --data /tmp/test.db --connect negative_balance --updates /tmp/negative_balance
@@ -219,9 +219,9 @@ $ tail /tmp/negative_balance
 The format is pretty straight forward. It's a key/value format, separated by a tab, where the key is the number of repetitions of a row and the value contains all the columns separated by a '|' (you can switch to csv with the option --csv).
 That number corresponds to the total number of rows with that value. So if a row was already present 23 times, and a transaction adds an additional instance of that row, that number would become 24.
 However, in practice, the number of repetition is always going to be 0 or 1 (0 for removal).
-Also note that for ephemeral streams (which will be introduced later), that number is always one.
+Also note that for ephemeral streams (which will be introduced later), that number is always 1.
 
-You can check the status of every connection at all times with the option "--sessions".
+You can check the status of every connection at all times with the option "--sessions":
 
 ```
 $ sqlive --sessions --data /tmp/test.db
@@ -312,7 +312,7 @@ the process that handles the changes will be able to keep up with the write rate
 ## Streaming
 
 SQLive also supports ephemeral tables called streams. They work exactly like a normal
-sql table, except that they do not persist on disk.
+SQL table, except that they do not persist on disk.
 
 ```
 $ echo "create stream customer_connect_log (clog_custkey INTEGER, clog_time INTEGER);" | sqlive --data /tmp/test.db
@@ -367,7 +367,6 @@ In this case, we could for example get 10 processes writing on the stream custom
 ```
 $ for j in {1..10}; do (for i in {1..10000}; do echo "$i, $i"; done | sqlive --data /tmp/test.db --load-csv customer_connect_log)& done; wait
 ```
-
 
 If you replace the '&' with a ';', you will see a dramatic slow down in the ingestion rate of
 the data.
@@ -436,7 +435,7 @@ $ tail /tmp/avg_balance
 1       4531.63158634502
 ```
 
-So you may wonder, how often is /tmp/avg\_balance updated? On every single change?
+So you may wonder, how often is /tmp/avg_balance updated? On every single change?
 Windows are different from streams and normal sql tables in that regard.
 When using a window, the database can decide to regroup changes together.
 So in this case, there might have been intermediate values between 711.5 and 4531.6 that were
@@ -451,7 +450,7 @@ Let's try it:
 $ for i in {500..1000}; do echo "$i, $i"; done | sqlive --data /tmp/test.db --load-csv customer_connect_window --force-window-update
 ```
 
-If you look at the file /tmp/avg\_balance you can see that all the updates are there.
+If you look at the file /tmp/avg_balance you can see that all the updates are there.
 
 ```
 $ wc /tmp/avg_balance
@@ -485,5 +484,3 @@ So only use windows when you have to use an aggregate function, typically for an
 Feel free to file github issues here: [https://github.com/SkipLabs/sqlive](https://github.com/SkipLabs/sqlive)
 
 ## Thank you for reading!
-
-# 
