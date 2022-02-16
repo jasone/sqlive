@@ -280,7 +280,7 @@ Time: 29
 
 The output gives us the next timestamp (25) plus the diff (the removal of the user 33).
 You can repeat that operation as often as you want, at the rate you want, which makes
-it convenient to poll changes periodically.
+it convenient to pull changes periodically.
 
 ## --updates vs --diff
 
