@@ -11,7 +11,7 @@ For commercial use, please contact us at [contact@skiplabs.io](mailto:contact@sk
 ## Linux
 
 SQLive is only available for x64-Linux.
-If you don't have linux on your machine, you can install [docker](https://docs.docker.com).
+If you don't have linux on your machine, you can install [docker](https://docs.docker.com/get-docker/).
 Although SQLive runs on most versions of Linux, SkipLabs will only maintain a version running on the latest [ubuntu LTS](https://wiki.ubuntu.com/Releases).
 We highly recommend you use that version,
 but if you need to run sqlive on a different platform, please contact us at [contact@skiplabs.io](mailto:contact@skiplabs.io).
