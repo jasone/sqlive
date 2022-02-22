@@ -226,7 +226,7 @@ And see the effect in '/tmp/negative\_balance':
 ```
 
 A new line appeared notifying us that the customer 11 has been removed.
-You may have noticed that two empty lines where introduced before the notification:
+You may have noticed that two empty lines were introduced before the notification:
 those lines tell us that the database finished a transaction and is starting a new one. If you are ingesting the changes, you
 can safely assume that the database was in a consistent state at that point.
 
@@ -361,7 +361,7 @@ For example, let's say we want to keep the data received in the last hour.
 The first column of a window is always expected to be a timestamp (an integer corresponding to a number of seconds since a fixed time in the past).
 The number 3600 corresponds to the number of seconds we want to persist the data.
 
-Now that we successfully created a window. Let's run a query on it. Let's compute the average
+Now that we successfully created a window, let's run a query on it. Let's compute the average
 account balance of the customers who connected in the last hour.
 As usual, we first compute the join as a separate step:
 
